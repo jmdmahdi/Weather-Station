@@ -56,3 +56,8 @@ dkms.conf
 
 # python
 __pycache__
+
+# STM32IDE
+.metadata
+.settings
+RemoteSystemsTempFiles
