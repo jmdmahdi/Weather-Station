@@ -25,6 +25,7 @@
 /* USER CODE BEGIN Includes */
 #include "BMP180.h"
 #include "MAX44009.h"
+#include "QMC5883L.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
@@ -51,6 +52,7 @@ I2C_HandleTypeDef hi2c1;
 /* USER CODE BEGIN PV */
 float BMP180_Temperature, lux;
 int32_t BMP180_Pressure;
+int heading;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -101,6 +103,9 @@ int main(void)
 	BMP180_UpdateCalibrationData();
 	// MAx44009 init
 	MAX44009_Begin(&hi2c1);
+	// HMC5883L init
+	QMC5883L_Init(&hi2c1);
+	QMC5883L_Set_Sampling_Rate(50);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -113,7 +118,9 @@ int main(void)
 	BMP180_Pressure = BMP180_GetPressure();
 	// Reads light intensity.
 	lux = MAX44009_Get_Lux();
-
+	// Reads compass.
+	heading = QMC5883L_Read_Heading();
+	// delay
 	HAL_Delay(100);
     /* USER CODE END WHILE */
 
