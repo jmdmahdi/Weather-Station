@@ -25,6 +25,7 @@
 /* USER CODE BEGIN Includes */
 #include "BMP180.h"
 #include "MAX44009.h"
+#include "AHT10.h"
 #include "QMC5883L.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -53,6 +54,7 @@ I2C_HandleTypeDef hi2c1;
 float BMP180_Temperature, lux;
 int32_t BMP180_Pressure;
 int heading;
+int8_t Data1[2];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -97,15 +99,17 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  	// BMP180 init
-  	BMP180_Init(&hi2c1);
-	BMP180_SetOversampling(BMP180_LOW);
-	BMP180_UpdateCalibrationData();
+  	 //BMP180 init
+  	 BMP180_Init(&hi2c1);
+	 BMP180_SetOversampling(BMP180_LOW);
+	 BMP180_UpdateCalibrationData();
 	// MAx44009 init
-	MAX44009_Begin(&hi2c1);
+	 MAX44009_Begin(&hi2c1);
 	// HMC5883L init
-	QMC5883L_Init(&hi2c1);
-	QMC5883L_Set_Sampling_Rate(50);
+	 QMC5883L_Init(&hi2c1);
+	 QMC5883L_Set_Sampling_Rate(50);
+	 // AHT10 init
+	 AHT10_Init(&hi2c1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -120,6 +124,8 @@ int main(void)
 	lux = MAX44009_Get_Lux();
 	// Reads compass.
 	heading = QMC5883L_Read_Heading();
+	// Reads temperature and hum.
+	AHT10_GetTemperature_hum(&Data1);
 	// delay
 	HAL_Delay(100);
     /* USER CODE END WHILE */
