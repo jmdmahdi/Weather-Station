@@ -25,6 +25,7 @@
 /* USER CODE BEGIN Includes */
 #include "BMP180.h"
 #include "MAX44009.h"
+#include "AHT10.h"
 #include "QMC5883L.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -53,6 +54,7 @@ I2C_HandleTypeDef hi2c1;
 float BMP180_Temperature, lux;
 int32_t BMP180_Pressure;
 int heading;
+int8_t Data1[2];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -97,15 +99,17 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  	// BMP180 init
-  	BMP180_Init(&hi2c1);
-	BMP180_SetOversampling(BMP180_LOW);
-	BMP180_UpdateCalibrationData();
+  	 //BMP180 init
+  	 BMP180_Init(&hi2c1);
+	 BMP180_SetOversampling(BMP180_LOW);
+	 BMP180_UpdateCalibrationData();
 	// MAx44009 init
-	MAX44009_Begin(&hi2c1);
+	 MAX44009_Begin(&hi2c1);
 	// HMC5883L init
-	QMC5883L_Init(&hi2c1);
-	QMC5883L_Set_Sampling_Rate(50);
+	 QMC5883L_Init(&hi2c1);
+	 QMC5883L_Set_Sampling_Rate(50);
+	 // AHT10 init
+	 AHT10_Init(&hi2c1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -120,6 +124,8 @@ int main(void)
 	lux = MAX44009_Get_Lux();
 	// Reads compass.
 	heading = QMC5883L_Read_Heading();
+	// Reads temperature and hum.
+	AHT10_GetTemperature_hum(&Data1);
 	// delay
 	HAL_Delay(100);
     /* USER CODE END WHILE */
@@ -140,11 +146,17 @@ void SystemClock_Config(void)
 
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV5;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
-  RCC_OscInitStruct.PLL2.PLL2State = RCC_PLL_NONE;
+  RCC_OscInitStruct.Prediv1Source = RCC_PREDIV1_SOURCE_PLL2;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
+  RCC_OscInitStruct.PLL2.PLL2State = RCC_PLL2_ON;
+  RCC_OscInitStruct.PLL2.PLL2MUL = RCC_PLL2_MUL8;
+  RCC_OscInitStruct.PLL2.HSEPrediv2Value = RCC_HSE_PREDIV2_DIV5;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -153,12 +165,12 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -183,7 +195,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 250000;
+  hi2c1.Init.ClockSpeed = 100000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
