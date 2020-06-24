@@ -61,4 +61,4 @@ __pycache__
 .metadata
 .settings
 RemoteSystemsTempFiles
-Debug/*
+Sensor/Debug/**
