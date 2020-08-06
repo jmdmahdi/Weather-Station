@@ -62,3 +62,11 @@ __pycache__
 .settings
 RemoteSystemsTempFiles
 Sensor/Debug/**
+
+# LaTeX
+main.toc
+main.aux
+main.log
+main.out
+main.synctex.gz
+

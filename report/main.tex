@@ -1,0 +1,35 @@
+\documentclass[12pt,a4paper]{article}    
+
+\usepackage{caption}
+\usepackage[margin=2.32cm]{geometry}
+\usepackage[hidelinks]{hyperref}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{zref-perpage}
+\usepackage[localise]{xepersian}
+
+\settextfont[Scale=1]{B Nazanin}
+\setlatintextfont[Scale=0.8]{Times New Roman}
+\setdigitfont[Scale=0.9]{Persian Modern}
+\parindent 0pt
+\titleformat{\section}[display]{\normalfont\bfseries}{}{0pt}{\LARGE}
+\titleformat*{\subsection}{\large\bfseries}
+
+
+\begin{document}
+
+	\pagenumbering{harfi} \pagestyle{empty} \baselineskip1.2\baselineskip
+	\input{parts/pagetitle.tex}
+	
+	\fontsize{14}{15}\selectfont
+	
+	\pagestyle{plain} \pagenumbering{tartibi} 
+	\tableofcontents
+	
+	\newpage \setcounter{page}{0} \pagenumbering{arabic} \setcounter{page}{1} \baselineskip1.1\baselineskip 
+	\zmakeperpage{footnote}
+	
+	\input{parts/intro.tex}
+		
+\end{document}

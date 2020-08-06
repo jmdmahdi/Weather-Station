@@ -103,9 +103,10 @@ class MainWindow(QMainWindow):
                 return
             if self.is_connected:
                 try:
-                    result = self.dev.read(0x81, 64, 60000).tobytes().decode('utf-8')
-                    progress_callback.emit(result)
-                except:
+                    result = self.dev.read(0x81, 64, 60000)
+                    progress_callback.emit(result.tobytes().decode('utf-8',errors="ignore"))
+                except Exception as e:
+                    print(e)
                     self.check_if_device_connected(True)
                     pass
             else:
