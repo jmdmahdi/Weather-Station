@@ -1,20 +1,25 @@
 \documentclass[12pt,a4paper]{article}    
 
-\usepackage{caption}
+\usepackage[justification=centering]{caption}
 \usepackage[margin=2.32cm]{geometry}
 \usepackage[hidelinks]{hyperref}
 \usepackage{amssymb}
+\usepackage{amsmath}
 \usepackage{graphicx}
+\usepackage{subcaption}
 \usepackage{titlesec}
 \usepackage{zref-perpage}
+\usepackage[space]{grffile}
 \usepackage[localise]{xepersian}
 
 \settextfont[Scale=1]{B Nazanin}
 \setlatintextfont[Scale=0.8]{Times New Roman}
-\setdigitfont[Scale=0.9]{Persian Modern}
+\setdigitfont[Scale=0.8]{Persian Modern}
+\DefaultMathsDigits
 \parindent 0pt
 \titleformat{\section}[display]{\normalfont\bfseries}{}{0pt}{\LARGE}
 \titleformat*{\subsection}{\large\bfseries}
+\bibliographystyle{ieeetr-fa}
 
 
 \begin{document}
@@ -31,5 +36,7 @@
 	\zmakeperpage{footnote}
 	
 	\input{parts/intro.tex}
-		
+	
+	\bibliography{lib}
+	
 \end{document}

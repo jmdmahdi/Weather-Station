@@ -1,7 +1,7 @@
 /* An STM32 HAL library written for the BMP180 temperature/pressure sensor. */
 /* Library by @eepj www.github.com/eepj */
-#ifndef BMP180_FOR_STM32_HAL_H
-#define BMP180_FOR_STM32_HAL_H
+#ifndef BMP180_H
+#define BMP180_H
 
 #include "main.h"
 

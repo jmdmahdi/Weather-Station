@@ -1,5 +1,4 @@
 #include "BMP180.h"
-#include "main.h"
 
 I2C_HandleTypeDef *_bmp180_ui2c;
 BMP180_EEPROM _bmp180_eeprom;

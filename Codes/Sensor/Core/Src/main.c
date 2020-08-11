@@ -23,13 +23,14 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "stdio.h"
+#include "stdlib.h"
+#include "string.h"
 #include "BMP180.h"
 #include "MAX44009.h"
 #include "AHT10.h"
 #include "QMC5883L.h"
-#include "stdio.h"
-#include "stdlib.h"
-#include "string.h"
+#include "HCSR05.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,17 +51,21 @@
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
+TIM_HandleTypeDef htim1;
+
 /* USER CODE BEGIN PV */
 float BMP180_Temperature, lux;
 int32_t BMP180_Pressure;
 int heading;
 int8_t Data1[2];
+float_t X_axis_wind_speed = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -98,18 +103,21 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_I2C1_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
-  	 //BMP180 init
-  	 BMP180_Init(&hi2c1);
-	 BMP180_SetOversampling(BMP180_LOW);
-	 BMP180_UpdateCalibrationData();
+	//BMP180 init
+	BMP180_Init(&hi2c1);
+	BMP180_SetOversampling(BMP180_LOW);
+	BMP180_UpdateCalibrationData();
 	// MAx44009 init
-	 MAX44009_Begin(&hi2c1);
+	MAX44009_Begin(&hi2c1);
 	// HMC5883L init
-	 QMC5883L_Init(&hi2c1);
-	 QMC5883L_Set_Sampling_Rate(50);
-	 // AHT10 init
-	 AHT10_Init(&hi2c1);
+	QMC5883L_Init(&hi2c1);
+	QMC5883L_Set_Sampling_Rate(50);
+	// AHT10 init
+	AHT10_Init(&hi2c1);
+	// microsecond delay init
+	HCSR05_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -125,9 +133,13 @@ int main(void)
 	// Reads compass.
 	heading = QMC5883L_Read_Heading();
 	// Reads temperature and hum.
-	AHT10_GetTemperature_hum(&Data1);
+	AHT10_GetTemperature_hum(Data1);
+	// Get HCSR05 ready
+	HCSR05_Ready(X_axis_echo_GPIO_Port, X_axis_echo_Pin, &htim1, TIM_CHANNEL_1);
+	// Get X asis wind speed
+	X_axis_wind_speed = HCSR05_Get_WindSpeed((int8_t) BMP180_Temperature, (uint32_t) BMP180_Pressure, (int8_t) Data1[1], 6);
 	// delay
-	HAL_Delay(100);
+	HAL_Delay(500);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -214,22 +226,95 @@ static void MX_I2C1_Init(void)
 }
 
 /**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_IC_InitTypeDef sConfigIC = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 72-1;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 65535-1;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_IC_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
+  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
+  sConfigIC.ICFilter = 0;
+  if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(X_axis_trigger_GPIO_Port, X_axis_trigger_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : X_axis_trigger_Pin */
+  GPIO_InitStruct.Pin = X_axis_trigger_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(X_axis_trigger_GPIO_Port, &GPIO_InitStruct);
 
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
+	HCSR05_TIM_Callback(htim);
+}
 /* USER CODE END 4 */
 
 /**
