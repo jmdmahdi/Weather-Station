@@ -15,6 +15,7 @@ uint32_t HCSR05_IC_First_Val;
 uint32_t HCSR05_IC_Second_Val;
 uint32_t HCSR05_TOF;
 uint8_t HCSR05_Is_First_Val_Captured;
+uint8_t HCSR05_Distance;
 float_t HCSR05_SoundSpeed;
 
 /**
@@ -119,19 +120,22 @@ void HCSR05_TIM_Callback(TIM_HandleTypeDef *htim)
  * @param trig_pin HCSR05 Trigger pin.
  * @param htim HCSR05 timer.
  * @param timer_channel HCSR05 timer channel.
+ * @param distance Distance between transducers (cm).
  */
-void HCSR05_Ready(GPIO_TypeDef *trig_port, uint16_t trig_pin, TIM_HandleTypeDef* htim, uint32_t timer_channel){
+void HCSR05_Ready(GPIO_TypeDef *trig_port, uint16_t trig_pin, TIM_HandleTypeDef* htim, uint32_t timer_channel, uint8_t distance){
 	// Set trigger port and pin global variables
 	HCSR05_Trigger_Port = trig_port;
 	HCSR05_Trigger_Pin = trig_pin;
 	// Set timer global variables
 	HCSR05_Htim = htim;
 	HCSR05_Channel = timer_channel;
+	// Set distance global variable
+	HCSR05_Distance = distance;
 	// Reset measurement Variables
 	HCSR05_TOF = 0;
 	HCSR05_Captured = 0;
 	HCSR05_IC_First_Val = 0;
-	HCSR05_IC_Val2 = 0;
+	HCSR05_IC_Second_Val = 0;
 	HCSR05_TOF = 0;
 	HCSR05_Is_First_Val_Captured = 0;
 	HCSR05_SoundSpeed = 0;
@@ -142,9 +146,8 @@ void HCSR05_Ready(GPIO_TypeDef *trig_port, uint16_t trig_pin, TIM_HandleTypeDef*
  * @param T Temperature (Celsius).
  * @param P Air pressure (Pa).
  * @param H Relative humidity (%).
- * @param D Distance between transducers (cm).
  */
-float_t HCSR05_Get_WindSpeed(int8_t T, uint32_t P, int8_t H, int8_t D){
+float_t HCSR05_Get_WindSpeed(int8_t T, uint32_t P, int8_t H){
 	// Calculate sound speed
 	HCSR05_Calculate_SoundSpeed(T, P, H);
 	// Calculate time of flight
@@ -153,7 +156,21 @@ float_t HCSR05_Get_WindSpeed(int8_t T, uint32_t P, int8_t H, int8_t D){
 	// If Calculated values true
 	if(HCSR05_TOF > 0 && HCSR05_SoundSpeed > 0){
 		// Calculate and Return Wind Speed on one axis
-		return (D * 1e4 / HCSR05_TOF) - HCSR05_SoundSpeed;
+		return (HCSR05_Distance * 1e4 / HCSR05_TOF) - HCSR05_SoundSpeed;
 	}
 	return 0;
+}
+
+/**
+ * Calculate speed R and theta
+ * @param X_axis X axis speed.
+ * @param Y_axis Y axis speed.
+ * @param result Air pressure (Pa).
+ */
+void HCSR05_Calculate_WindSpeedNdAngle(float_t X_axis, float_t Y_axis, float_t *result){
+	//Convert data to complex numbers
+	float _Complex speed = X_axis + (Y_axis * _Complex_I);
+	// fill result with R and theta form complex number
+	*result = cabs(speed);
+	*(result+1) = carg(speed);
 }

@@ -62,6 +62,10 @@ void Error_Handler(void);
 #define X_axis_echo_GPIO_Port GPIOE
 #define X_axis_trigger_Pin GPIO_PIN_10
 #define X_axis_trigger_GPIO_Port GPIOE
+#define Y_axis_echo_Pin GPIO_PIN_11
+#define Y_axis_echo_GPIO_Port GPIOE
+#define Y_axis_trigger_Pin GPIO_PIN_12
+#define Y_axis_trigger_GPIO_Port GPIOE
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

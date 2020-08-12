@@ -40,7 +40,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define HCSR05_DISTANCE 6
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -57,8 +57,10 @@ TIM_HandleTypeDef htim1;
 float BMP180_Temperature, lux;
 int32_t BMP180_Pressure;
 int heading;
-int8_t Data1[2];
+int8_t TempHum[2];
 float_t X_axis_wind_speed = 0;
+float_t Y_axis_wind_speed = 0;
+float_t wind[2];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -126,18 +128,31 @@ int main(void)
   {
 	// Reads temperature.
 	BMP180_Temperature = BMP180_GetTemperature();
+
 	// Reads pressure.
 	BMP180_Pressure = BMP180_GetPressure();
+
 	// Reads light intensity.
 	lux = MAX44009_Get_Lux();
+
 	// Reads compass.
 	heading = QMC5883L_Read_Heading();
+
 	// Reads temperature and hum.
-	AHT10_GetTemperature_hum(Data1);
-	// Get HCSR05 ready
-	HCSR05_Ready(X_axis_echo_GPIO_Port, X_axis_echo_Pin, &htim1, TIM_CHANNEL_1);
+	AHT10_GetTemperature_hum(TempHum);
+
+
 	// Get X asis wind speed
-	X_axis_wind_speed = HCSR05_Get_WindSpeed((int8_t) BMP180_Temperature, (uint32_t) BMP180_Pressure, (int8_t) Data1[1], 6);
+	HCSR05_Ready(X_axis_echo_GPIO_Port, X_axis_echo_Pin, &htim1, TIM_CHANNEL_1, HCSR05_DISTANCE);
+	X_axis_wind_speed = HCSR05_Get_WindSpeed((int8_t) BMP180_Temperature, (uint32_t) BMP180_Pressure, (int8_t) TempHum[1]);
+
+	// Get Y asis wind speed
+	HCSR05_Ready(Y_axis_echo_GPIO_Port, Y_axis_echo_Pin, &htim1, TIM_CHANNEL_2, HCSR05_DISTANCE);
+	Y_axis_wind_speed = HCSR05_Get_WindSpeed((int8_t) BMP180_Temperature, (uint32_t) BMP180_Pressure, (int8_t) TempHum[1]);
+
+	// Calculate wind speed and direction
+	HCSR05_Calculate_WindSpeedNdAngle(X_axis_wind_speed, Y_axis_wind_speed, wind);
+
 	// delay
 	HAL_Delay(500);
     /* USER CODE END WHILE */
@@ -278,6 +293,10 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
+  if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN TIM1_Init 2 */
 
   /* USER CODE END TIM1_Init 2 */
@@ -300,14 +319,14 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(X_axis_trigger_GPIO_Port, X_axis_trigger_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOE, X_axis_trigger_Pin|Y_axis_trigger_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : X_axis_trigger_Pin */
-  GPIO_InitStruct.Pin = X_axis_trigger_Pin;
+  /*Configure GPIO pins : X_axis_trigger_Pin Y_axis_trigger_Pin */
+  GPIO_InitStruct.Pin = X_axis_trigger_Pin|Y_axis_trigger_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(X_axis_trigger_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
 }
 
