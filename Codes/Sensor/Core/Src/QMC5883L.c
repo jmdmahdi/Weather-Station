@@ -148,7 +148,7 @@ int QMC5883L_ReadRaw( int16_t *x, int16_t *y, int16_t *z, int16_t *t )
 
   uint8_t data[6];
 
-  QMC5883L_Read_Register(&data,QMC5883L_X_LSB,6);
+  QMC5883L_Read_Register(data,QMC5883L_X_LSB,6);
 
   *x = data[0] | (data[1]<<8);
   *y = data[2] | (data[3]<<8);

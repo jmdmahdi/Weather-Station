@@ -2,7 +2,7 @@
 /**
   ******************************************************************************
   * @file           : main.c
-  * @brief          : Main program body
+  * @brief          : Weather Station Sensor Side Codes
   ******************************************************************************
   * @attention
   *
@@ -23,9 +23,6 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "stdio.h"
-#include "stdlib.h"
-#include "string.h"
 #include "BMP180.h"
 #include "MAX44009.h"
 #include "AHT10.h"
@@ -51,6 +48,8 @@
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
+RTC_HandleTypeDef hrtc;
+
 TIM_HandleTypeDef htim1;
 
 /* USER CODE BEGIN PV */
@@ -67,6 +66,7 @@ float_t wind[2];
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_RTC_Init(void);
 static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -105,21 +105,28 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_I2C1_Init();
+  MX_RTC_Init();
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
-	//BMP180 init
-	BMP180_Init(&hi2c1);
-	BMP180_SetOversampling(BMP180_LOW);
-	BMP180_UpdateCalibrationData();
-	// MAx44009 init
-	MAX44009_Begin(&hi2c1);
-	// HMC5883L init
-	QMC5883L_Init(&hi2c1);
-	QMC5883L_Set_Sampling_Rate(50);
-	// AHT10 init
-	AHT10_Init(&hi2c1);
-	// microsecond delay init
-	HCSR05_Init();
+
+  //BMP180 init
+  BMP180_Init(&hi2c1);
+  BMP180_SetOversampling(BMP180_LOW);
+  BMP180_UpdateCalibrationData();
+
+  // MAx44009 init
+  MAX44009_Begin(&hi2c1);
+
+  // HMC5883L init
+  QMC5883L_Init(&hi2c1);
+  QMC5883L_Set_Sampling_Rate(50);
+
+  // AHT10 init
+  AHT10_Init(&hi2c1);
+
+  // HCSR05 delay init
+  HCSR05_Init();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -146,15 +153,27 @@ int main(void)
 	HCSR05_Ready(X_axis_echo_GPIO_Port, X_axis_echo_Pin, &htim1, TIM_CHANNEL_1, HCSR05_DISTANCE);
 	X_axis_wind_speed = HCSR05_Get_WindSpeed((int8_t) BMP180_Temperature, (uint32_t) BMP180_Pressure, (int8_t) TempHum[1]);
 
+
 	// Get Y asis wind speed
 	HCSR05_Ready(Y_axis_echo_GPIO_Port, Y_axis_echo_Pin, &htim1, TIM_CHANNEL_2, HCSR05_DISTANCE);
 	Y_axis_wind_speed = HCSR05_Get_WindSpeed((int8_t) BMP180_Temperature, (uint32_t) BMP180_Pressure, (int8_t) TempHum[1]);
 
+
 	// Calculate wind speed and direction
 	HCSR05_Calculate_WindSpeedNdAngle(X_axis_wind_speed, Y_axis_wind_speed, wind);
 
-	// delay
-	HAL_Delay(500);
+
+	/* Taking a rest after a hard work */
+
+	// Stop tick to reduce MCU power usage
+	HAL_SuspendTick();
+	// Enter stop mode and wait until interrupt occurred
+	HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
+
+	// After alarm interrupt
+	// Reset RTC
+	MX_RTC_Init();
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -170,13 +189,15 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV5;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.Prediv1Source = RCC_PREDIV1_SOURCE_PLL2;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
@@ -198,6 +219,12 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_RTC;
+  PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
   }
@@ -237,6 +264,74 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief RTC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_RTC_Init(void)
+{
+
+  /* USER CODE BEGIN RTC_Init 0 */
+
+  /* USER CODE END RTC_Init 0 */
+
+  RTC_TimeTypeDef sTime = {0};
+  RTC_DateTypeDef DateToUpdate = {0};
+  RTC_AlarmTypeDef sAlarm = {0};
+
+  /* USER CODE BEGIN RTC_Init 1 */
+
+  /* USER CODE END RTC_Init 1 */
+  /** Initialize RTC Only 
+  */
+  hrtc.Instance = RTC;
+  hrtc.Init.AsynchPrediv = RTC_AUTO_1_SECOND;
+  hrtc.Init.OutPut = RTC_OUTPUTSOURCE_ALARM;
+  if (HAL_RTC_Init(&hrtc) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /* USER CODE BEGIN Check_RTC_BKUP */
+    
+  /* USER CODE END Check_RTC_BKUP */
+
+  /** Initialize RTC and set the Time and Date 
+  */
+  sTime.Hours = 0;
+  sTime.Minutes = 0;
+  sTime.Seconds = 0;
+
+  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  DateToUpdate.WeekDay = RTC_WEEKDAY_MONDAY;
+  DateToUpdate.Month = RTC_MONTH_JANUARY;
+  DateToUpdate.Date = 1;
+  DateToUpdate.Year = 0;
+
+  if (HAL_RTC_SetDate(&hrtc, &DateToUpdate, RTC_FORMAT_BIN) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Enable the Alarm A 
+  */
+  sAlarm.AlarmTime.Hours = 3;
+  sAlarm.AlarmTime.Minutes = 0;
+  sAlarm.AlarmTime.Seconds = 0;
+  sAlarm.Alarm = RTC_ALARM_A;
+  if (HAL_RTC_SetAlarm_IT(&hrtc, &sAlarm, RTC_FORMAT_BIN) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN RTC_Init 2 */
+
+  /* USER CODE END RTC_Init 2 */
 
 }
 
@@ -331,9 +426,26 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+/**
+  * @brief Timer Capture Callback
+  * @param htim
+  * @retval None
+  */
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
-	HCSR05_TIM_Callback(htim);
+  HCSR05_TIM_Callback(htim);
 }
+
+/**
+  * @brief Alarm Event Callback Function
+  * @param hrtc
+  * @retval None
+  */
+void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc){
+  SystemClock_Config();
+  HAL_ResumeTick();
+}
+
 /* USER CODE END 4 */
 
 /**
