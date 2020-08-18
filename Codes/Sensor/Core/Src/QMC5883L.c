@@ -44,9 +44,9 @@
 #define QMC5883L_CONFIG_STANDBY 0b00000000
 #define QMC5883L_CONFIG_CONT    0b00000001
 
-/* Apparently M_PI isn't available in all environments. */
-#ifndef M_PI
-#define M_PI 3.14159265358979323846264338327950288
+/* Apparently PI isn't available in all environments. */
+#ifndef PI
+#define PI 3.14159265358979323846264338327950288
 #endif
 
 I2C_HandleTypeDef *QMC5883L_i2c;
@@ -142,7 +142,7 @@ int QMC5883L_Ready()
   return data & QMC5883L_STATUS_DRDY;
 }
 
-int QMC5883L_ReadRaw( int16_t *x, int16_t *y, int16_t *z, int16_t *t )
+int QMC5883L_ReadRaw( int16_t *x, int16_t *y, int16_t *z)
 {
   while(!QMC5883L_Ready()) {}
 
@@ -164,9 +164,9 @@ void QMC5883L_Reset_Calibration() {
 
 int QMC5883L_Read_Heading()
 {
-  int16_t x, y, z, t;
+  int16_t x, y, z;
 
-  if(!QMC5883L_ReadRaw(&x,&y,&z,&t)) return 0;
+  if(!QMC5883L_ReadRaw(&x,&y,&z)) return 0;
 
   /* Update the observed boundaries of the measurements */
 

@@ -37,7 +37,13 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+// Transducers distance
 #define HCSR05_DISTANCE 6
+
+// Angle difference between wind sensor x axis and compass x axis
+#define HCSR05_ANGLE_DIFFERENCE 0
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -55,7 +61,7 @@ TIM_HandleTypeDef htim1;
 /* USER CODE BEGIN PV */
 float BMP180_Temperature, lux;
 int32_t BMP180_Pressure;
-int heading;
+int16_t compass_x, compass_y, compass_z;
 int8_t TempHum[2];
 float_t X_axis_wind_speed = 0;
 float_t Y_axis_wind_speed = 0;
@@ -143,25 +149,21 @@ int main(void)
 	lux = MAX44009_Get_Lux();
 
 	// Reads compass.
-	heading = QMC5883L_Read_Heading();
+	QMC5883L_ReadRaw(&compass_x, &compass_y, &compass_z);
 
 	// Reads temperature and hum.
 	AHT10_GetTemperature_hum(TempHum);
 
-
-	// Get X asis wind speed
-	HCSR05_Ready(X_axis_echo_GPIO_Port, X_axis_echo_Pin, &htim1, TIM_CHANNEL_1, HCSR05_DISTANCE);
+	// Get X axis wind speed
+	HCSR05_Ready(X_axis_echo_GPIO_Port, X_axis_echo_Pin, &htim1, TIM_CHANNEL_1, HCSR05_DISTANCE, HCSR05_ANGLE_DIFFERENCE);
 	X_axis_wind_speed = HCSR05_Get_WindSpeed((int8_t) BMP180_Temperature, (uint32_t) BMP180_Pressure, (int8_t) TempHum[1]);
 
-
-	// Get Y asis wind speed
-	HCSR05_Ready(Y_axis_echo_GPIO_Port, Y_axis_echo_Pin, &htim1, TIM_CHANNEL_2, HCSR05_DISTANCE);
+	// Get Y axis wind speed
+	HCSR05_Ready(Y_axis_echo_GPIO_Port, Y_axis_echo_Pin, &htim1, TIM_CHANNEL_2, HCSR05_DISTANCE, HCSR05_ANGLE_DIFFERENCE);
 	Y_axis_wind_speed = HCSR05_Get_WindSpeed((int8_t) BMP180_Temperature, (uint32_t) BMP180_Pressure, (int8_t) TempHum[1]);
 
-
 	// Calculate wind speed and direction
-	HCSR05_Calculate_WindSpeedNdAngle(X_axis_wind_speed, Y_axis_wind_speed, wind);
-
+	HCSR05_Calculate_WindSpeedNdAngle(X_axis_wind_speed, Y_axis_wind_speed, compass_x, compass_y, wind);
 
 	/* Taking a rest after a hard work */
 

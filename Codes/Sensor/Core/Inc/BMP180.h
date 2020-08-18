@@ -3,7 +3,7 @@
 #ifndef BMP180_H
 #define BMP180_H
 
-#include "main.h"
+#include "stm32f1xx_hal.h"
 
 #define BMP180_I2C_ADDR					0x77
 #define BMP180_I2C_TIMEOUT				1000

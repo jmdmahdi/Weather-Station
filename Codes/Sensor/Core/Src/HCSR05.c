@@ -6,20 +6,8 @@
  */
 #include "HCSR05.h"
 
-GPIO_TypeDef *HCSR05_Trigger_Port;
-uint16_t HCSR05_Trigger_Pin;
-TIM_HandleTypeDef* HCSR05_Htim;
-uint32_t HCSR05_Channel;
-uint8_t HCSR05_Captured;
-uint32_t HCSR05_IC_First_Val;
-uint32_t HCSR05_IC_Second_Val;
-uint32_t HCSR05_TOF;
-uint8_t HCSR05_Is_First_Val_Captured;
-uint8_t HCSR05_Distance;
-float_t HCSR05_SoundSpeed;
-
 /**
- * Initialization sensor requirments
+ * @brief Initialization sensor requirments.
  */
 void HCSR05_Init(void)
 {
@@ -28,7 +16,7 @@ void HCSR05_Init(void)
 }
 
 /**
- * Calculate sound speed based on Owen Cramer's method.
+ * @brief Calculate sound speed based on Owen Cramer's method.
  * @param T Temperature (Celsius).
  * @param P Air pressure (Pa).
  * @param H Relative humidity (%).
@@ -53,7 +41,7 @@ void HCSR05_Calculate_SoundSpeed(int8_t T, uint32_t P, int8_t H){
 }
 
 /**
- * Calculate sound time of flight.
+ * @brief Calculate sound time of flight.
  */
 void HCSR05_Calculate_TOF(void)
 {
@@ -76,7 +64,7 @@ void HCSR05_Calculate_TOF(void)
 	HAL_TIM_IC_Stop_IT(HCSR05_Htim, HCSR05_Channel);
 }
 /**
- * must put in HAL_TIM_IC_CaptureCallback
+ * @brief must put in HAL_TIM_IC_CaptureCallback.
  */
 void HCSR05_TIM_Callback(TIM_HandleTypeDef *htim)
 {
@@ -115,14 +103,14 @@ void HCSR05_TIM_Callback(TIM_HandleTypeDef *htim)
 }
 
 /**
- * Get things ready.
+ * @brief Get things ready.
  * @param trig_port HCSR05 Trigger pin port.
  * @param trig_pin HCSR05 Trigger pin.
  * @param htim HCSR05 timer.
  * @param timer_channel HCSR05 timer channel.
  * @param distance Distance between transducers (cm).
  */
-void HCSR05_Ready(GPIO_TypeDef *trig_port, uint16_t trig_pin, TIM_HandleTypeDef* htim, uint32_t timer_channel, uint8_t distance){
+void HCSR05_Ready(GPIO_TypeDef *trig_port, uint16_t trig_pin, TIM_HandleTypeDef* htim, uint32_t timer_channel, uint8_t distance, int8_t angle_difference){
 	// Set trigger port and pin global variables
 	HCSR05_Trigger_Port = trig_port;
 	HCSR05_Trigger_Pin = trig_pin;
@@ -131,6 +119,8 @@ void HCSR05_Ready(GPIO_TypeDef *trig_port, uint16_t trig_pin, TIM_HandleTypeDef*
 	HCSR05_Channel = timer_channel;
 	// Set distance global variable
 	HCSR05_Distance = distance;
+	// Set angle difference global variable
+	HCSR05_Angle_Difference = angle_difference;
 	// Reset measurement Variables
 	HCSR05_TOF = 0;
 	HCSR05_Captured = 0;
@@ -142,7 +132,7 @@ void HCSR05_Ready(GPIO_TypeDef *trig_port, uint16_t trig_pin, TIM_HandleTypeDef*
 }
 
 /**
- * Get wind speed on one axis.
+ * @brief Get wind speed on one axis.
  * @param T Temperature (Celsius).
  * @param P Air pressure (Pa).
  * @param H Relative humidity (%).
@@ -162,15 +152,29 @@ float_t HCSR05_Get_WindSpeed(int8_t T, uint32_t P, int8_t H){
 }
 
 /**
- * Calculate speed R and theta
+ * @brief Calculate angle from x and y.
+ * @return Angle in degree.
+ */
+float_t HCSR05_Calculate_Angle(double_t x, double_t y){
+	// Calculate angle and convert to degree
+	return atan2(y, x) * 180.0 / PI;
+}
+
+/**
+ * @brief Calculate speed R and theta.
  * @param X_axis X axis speed.
  * @param Y_axis Y axis speed.
- * @param result Air pressure (Pa).
+ * @param compass_x compass measured x.
+ * @param compass_y compass measured y.
+ * @param result will fill with calculated speed and angle
  */
-void HCSR05_Calculate_WindSpeedNdAngle(float_t X_axis, float_t Y_axis, float_t *result){
-	//Convert data to complex numbers
-	float _Complex speed = X_axis + (Y_axis * _Complex_I);
-	// fill result with R and theta form complex number
-	*result = cabs(speed);
-	*(result+1) = carg(speed);
+void HCSR05_Calculate_WindSpeedNdAngle(float_t X_axis, float_t Y_axis, int16_t compass_x, int16_t compass_y, float_t *result){
+	// Calculate angle
+	float_t compose_angle = HCSR05_Calculate_Angle(compass_x, compass_y);
+	float_t wind_angle = HCSR05_Calculate_Angle(X_axis, Y_axis);
+	float_t angle = compose_angle + wind_angle + HCSR05_Angle_Difference;
+	if(angle<=0) angle += 360;
+	// Fill result with R(speed) and theta(angle)
+	*result = hypot(X_axis, Y_axis);
+	*(result+1) = angle;
 }

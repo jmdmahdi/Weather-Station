@@ -8,7 +8,7 @@
 #ifndef AHT10_H
 #define AHT10_H
 
-#include "main.h"
+#include "stm32f1xx_hal.h"
 
 HAL_StatusTypeDef AHT10_Init(I2C_HandleTypeDef *hi2c);
 void AHT10_GetRaw_Temperature_hum(void);

@@ -10,7 +10,7 @@ int  QMC5883L_Ready();
 void QMC5883L_Reconfig();
 
 int QMC5883L_Read_Heading();
-int QMC5883L_ReadRaw( int16_t *x, int16_t *y, int16_t *z, int16_t *t );
+int QMC5883L_ReadRaw(int16_t *x, int16_t *y, int16_t *z);
 
 void QMC5883L_Reset_Calibration();
 
