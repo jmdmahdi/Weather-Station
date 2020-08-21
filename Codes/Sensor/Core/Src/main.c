@@ -28,6 +28,7 @@
 #include "AHT10.h"
 #include "QMC5883L.h"
 #include "HCSR05.h"
+#include "SX1278.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -56,6 +57,8 @@ I2C_HandleTypeDef hi2c1;
 
 RTC_HandleTypeDef hrtc;
 
+SPI_HandleTypeDef hspi1;
+
 TIM_HandleTypeDef htim1;
 
 /* USER CODE BEGIN PV */
@@ -66,6 +69,10 @@ int8_t TempHum[2];
 float_t X_axis_wind_speed = 0;
 float_t Y_axis_wind_speed = 0;
 float_t wind[2];
+float_t TXData[8];
+uint8_t *TXDataCast;
+SX1278_hw_t SX1278_hw;
+SX1278_t SX1278;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -73,6 +80,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_RTC_Init(void);
+static void MX_SPI1_Init(void);
 static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -112,6 +120,7 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_RTC_Init();
+  MX_SPI1_Init();
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
@@ -133,6 +142,23 @@ int main(void)
   // HCSR05 delay init
   HCSR05_Init();
 
+  // Initialize LoRa
+  SX1278_hw.dio0.port = LoRa_DIO_GPIO_Port;
+  SX1278_hw.dio0.pin = LoRa_DIO_Pin;
+  SX1278_hw.nss.port = LoRa_NSS_GPIO_Port;
+  SX1278_hw.nss.pin = LoRa_NSS_Pin;
+  SX1278_hw.reset.port = LoRa_RST_GPIO_Port;
+  SX1278_hw.reset.pin = LoRa_RST_Pin;
+  SX1278_hw.spi = &hspi1;
+  SX1278.hw= &SX1278_hw;
+  SX1278_begin(&SX1278, SX1278_433MHZ, SX1278_POWER_20DBM, SX1278_LORA_SF_10, SX1278_LORA_BW_31_2KHZ, 16);
+
+  SX1278_LoRaEntryTx(&SX1278, 16, 2000);
+
+  // Setting TXData constant values
+  TXData[0] = 123456; // Sender device id
+  TXData[1] = 654321; // Receiver device id
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -141,18 +167,26 @@ int main(void)
   {
 	// Reads temperature.
 	BMP180_Temperature = BMP180_GetTemperature();
+	// Setting TXData
+	TXData[2] = BMP180_Temperature; // Temperature
 
 	// Reads pressure.
 	BMP180_Pressure = BMP180_GetPressure();
+	// Setting TXData
+	TXData[3] = BMP180_Pressure; // Pressure
 
 	// Reads light intensity.
 	lux = MAX44009_Get_Lux();
-
-	// Reads compass.
-	QMC5883L_ReadRaw(&compass_x, &compass_y, &compass_z);
+	// Setting TXData
+	TXData[4] = lux; // Light intensity
 
 	// Reads temperature and hum.
 	AHT10_GetTemperature_hum(TempHum);
+	// Setting TXData
+	TXData[5] = TempHum[1]; // Humidity
+
+	// Reads compass.
+	QMC5883L_ReadRaw(&compass_x, &compass_y, &compass_z);
 
 	// Get X axis wind speed
 	HCSR05_Ready(X_axis_echo_GPIO_Port, X_axis_echo_Pin, &htim1, TIM_CHANNEL_1, HCSR05_DISTANCE, HCSR05_ANGLE_DIFFERENCE);
@@ -164,6 +198,13 @@ int main(void)
 
 	// Calculate wind speed and direction
 	HCSR05_Calculate_WindSpeedNdAngle(X_axis_wind_speed, Y_axis_wind_speed, compass_x, compass_y, wind);
+	// Setting TXData
+	TXData[6] = wind[0]; // Wind speed
+	TXData[7] = wind[1]; // Wind direction
+
+	// Transmit TXData
+	TXDataCast = (uint8_t *)TXData;
+	SX1278_transmit(&SX1278, TXDataCast, sizeof(TXDataCast), 3000);
 
 	/* Taking a rest after a hard work */
 
@@ -338,6 +379,44 @@ static void MX_RTC_Init(void)
 }
 
 /**
+  * @brief SPI1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI1_Init(void)
+{
+
+  /* USER CODE BEGIN SPI1_Init 0 */
+
+  /* USER CODE END SPI1_Init 0 */
+
+  /* USER CODE BEGIN SPI1_Init 1 */
+
+  /* USER CODE END SPI1_Init 1 */
+  /* SPI1 parameter configuration*/
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 10;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI1_Init 2 */
+
+  /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
   * @brief TIM1 Initialization Function
   * @param None
   * @retval None
@@ -411,12 +490,38 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LoRa_NSS_GPIO_Port, LoRa_NSS_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LoRa_RST_GPIO_Port, LoRa_RST_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOE, X_axis_trigger_Pin|Y_axis_trigger_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : LoRa_NSS_Pin */
+  GPIO_InitStruct.Pin = LoRa_NSS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LoRa_NSS_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LoRa_RST_Pin */
+  GPIO_InitStruct.Pin = LoRa_RST_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LoRa_RST_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LoRa_DIO_Pin */
+  GPIO_InitStruct.Pin = LoRa_DIO_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(LoRa_DIO_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : X_axis_trigger_Pin Y_axis_trigger_Pin */
   GPIO_InitStruct.Pin = X_axis_trigger_Pin|Y_axis_trigger_Pin;
