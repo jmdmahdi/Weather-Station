@@ -45,6 +45,9 @@
 // Angle difference between wind sensor x axis and compass x axis
 #define HCSR05_ANGLE_DIFFERENCE 0
 
+// LoRa device id
+#define DEVICE_ID 123456
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -156,7 +159,7 @@ int main(void)
   SX1278_LoRaEntryTx(&SX1278, 16, 2000);
 
   // Setting TXData constant values
-  TXData[0] = 123456; // Sender device id
+  TXData[0] = DEVICE_ID; // Sender device id
   TXData[1] = 654321; // Receiver device id
 
   /* USER CODE END 2 */
@@ -203,7 +206,7 @@ int main(void)
 	TXData[7] = wind[1]; // Wind direction
 
 	// Transmit TXData
-	TXDataCast = (uint8_t *)TXData;
+	TXDataCast = (uint8_t *) TXData;
 	SX1278_transmit(&SX1278, TXDataCast, sizeof(TXDataCast), 3000);
 
 	/* Taking a rest after a hard work */

@@ -35,15 +35,15 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING
  15 .debug_ranges 00001108  00000000  00000000  00038008  2**3
                   CONTENTS, READONLY, DEBUGGING
- 16 .debug_macro  0001e178  00000000  00000000  00039110  2**0
+ 16 .debug_macro  0001e17e  00000000  00000000  00039110  2**0
                   CONTENTS, READONLY, DEBUGGING
- 17 .debug_line   0000e166  00000000  00000000  00057288  2**0
+ 17 .debug_line   0000e166  00000000  00000000  0005728e  2**0
                   CONTENTS, READONLY, DEBUGGING
- 18 .debug_str    000a767f  00000000  00000000  000653ee  2**0
+ 18 .debug_str    000a7690  00000000  00000000  000653f4  2**0
                   CONTENTS, READONLY, DEBUGGING
- 19 .comment      0000007b  00000000  00000000  0010ca6d  2**0
+ 19 .comment      0000007b  00000000  00000000  0010ca84  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  00005334  00000000  00000000  0010cae8  2**2
+ 20 .debug_frame  00005334  00000000  00000000  0010cb00  2**2
                   CONTENTS, READONLY, DEBUGGING
 
 Disassembly of section .text:
@@ -5393,7 +5393,7 @@ int main(void)
  8002e7a:	f7ff fe8f 	bl	8002b9c <SX1278_LoRaEntryTx>
 
   // Setting TXData constant values
-  TXData[0] = 123456; // Sender device id
+  TXData[0] = DEVICE_ID; // Sender device id
  8002e7e:	4b54      	ldr	r3, [pc, #336]	; (8002fd0 <main+0x1f0>)
  8002e80:	4a54      	ldr	r2, [pc, #336]	; (8002fd4 <main+0x1f4>)
  8002e82:	601a      	str	r2, [r3, #0]
