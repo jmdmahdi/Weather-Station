@@ -2,13 +2,20 @@ import sys
 import time
 import traceback
 import usb
+import faulthandler
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from UI.main_window import Ui_MainWindow
+from UI.compass import CompassWidget
+import signal
 
+signal.signal(signal.SIGINT, signal.SIG_DFL) # Force Close with ctrl+c
+
+faulthandler.enable() # Properly show Qt faults 
+
+# Define device USB IDs
 idVendor = 1156
 idProduct = 22339
-
 
 class WorkerSignals(QObject):
     '''
@@ -78,11 +85,31 @@ class MainWindow(QMainWindow):
         self.is_connected = False
         self.is_configured = False
         self.dev = None
+        self.status = "checking"
 
         self.window = Ui_MainWindow()
         self.window.setupUi(self)
+        
+        self.compass = CompassWidget()
+        self.window.compassLayout.addWidget(self.compass)
+        
+        # Restore last time window geometry
+        self.settings = QSettings('JMDMahdi', 'WeatherStation')
+        geometry = self.settings.value('geometry', '')
+        if isinstance(geometry, QByteArray):
+            self.restoreGeometry(geometry)
 
-        self.check_if_device_connected()  # check device connection status before showing window
+        self.setWindAngle(10)
+        self.setWindSpeed(4)
+        self.setTemperature(26)
+        self.setLightIntensity(100)
+        self.setHumidity(60)
+        self.setPressure(800)
+        self.setDate("Sunday, August 30, 2020")
+        self.setTime("22:30:45")
+
+	# check device connection status before showing window
+        self.check_if_device_connected()
 
         self.threadpool = QThreadPool()
         # Pass the function to execute
@@ -114,12 +141,16 @@ class MainWindow(QMainWindow):
                 self.check_if_device_connected(True)
 
     def device_connected(self):
-        self.window.statusbar.showMessage('Connected')
-        self.window.statusbar.setStyleSheet('color: green')
+        if self.status != "connected":
+            self.window.statusbar.showMessage('Connected')
+            self.window.statusbar.setStyleSheet('color: green')
+            self.status = "connected"
 
     def device_disconnected(self):
-        self.window.statusbar.showMessage('Disconnected')
-        self.window.statusbar.setStyleSheet('color: red')
+        if self.status != "disconnected":
+            self.window.statusbar.showMessage('Disconnected')
+            self.window.statusbar.setStyleSheet('color: red')
+            self.status = "disconnected"
 
     def find_device(self):
         dev_g = usb.core.find(idVendor=idVendor, idProduct=idProduct, find_all=True)
@@ -172,6 +203,8 @@ class MainWindow(QMainWindow):
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
         if reply == QMessageBox.Yes:
+            # Save window geometry to restore next time
+            self.settings.setValue('geometry', self.saveGeometry())
             # Tell worker to stop processing
             self.close = True
             # Wait for the worker to end
@@ -180,8 +213,34 @@ class MainWindow(QMainWindow):
             event.accept()
         else:
             event.ignore()
+            
+    def setWindAngle(self, angle):
+        self.compass.setAngle(angle)
+        self.window.windAngleText.setText(str(angle) + " °")
 
+    def setWindSpeed(self, speed):
+        self.window.windSpeedText.setText(str(speed) + " m/s")
 
+    def setTemperature(self, temperature):
+        self.window.temperatureText.setText(str(temperature) + " °C")
+
+    def setLightIntensity(self, lightIntensity):
+        self.window.lightIntensityText.setText(str(lightIntensity) + " lux")
+
+    def setHumidity(self, humidity):
+        self.window.humidityText.setText(str(humidity) + " %")
+
+    def setPressure(self, pressure):
+        self.window.pressureText.setText(str(pressure) + " hPa")
+
+    def setDate(self, date):
+        self.window.dateText.setText(str(date))
+
+    def setTime(self, time):
+        self.window.timeText.setText(str(time))        
+        
+        
+        
 if __name__ == "__main__":
     app = QApplication(["Weather Station"])
     main_window = MainWindow()
