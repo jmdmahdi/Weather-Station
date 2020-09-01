@@ -72,6 +72,8 @@ void Error_Handler(void);
 #define Y_axis_echo_GPIO_Port GPIOE
 #define Y_axis_trigger_Pin GPIO_PIN_12
 #define Y_axis_trigger_GPIO_Port GPIOE
+#define workingMode_Pin GPIO_PIN_6
+#define workingMode_GPIO_Port GPIOC
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

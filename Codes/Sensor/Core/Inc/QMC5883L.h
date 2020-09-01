@@ -5,8 +5,9 @@
 #include "math.h"
 
 void QMC5883L_Init();
+void QMC5883L_Sleep();
 void QMC5883L_Reset();
-int  QMC5883L_Ready();
+int QMC5883L_Ready();
 void QMC5883L_Reconfig();
 
 int QMC5883L_Read_Heading();
@@ -14,9 +15,9 @@ int QMC5883L_ReadRaw(int16_t *x, int16_t *y, int16_t *z);
 
 void QMC5883L_Reset_Calibration();
 
-void QMC5883L_Set_Sampling_Rate( int rate );
-void QMC5883L_Set_Range( int range );
-void QMC5883L_Set_Oversampling( int ovl );
+void QMC5883L_Set_Sampling_Rate(int rate);
+void QMC5883L_Set_Range(int range);
+void QMC5883L_Set_Oversampling(int ovl);
 
 int16_t xhigh, xlow;
 int16_t yhigh, ylow;
