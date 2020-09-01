@@ -3,19 +3,24 @@ import time
 import traceback
 import usb
 import faulthandler
+from PyQt5.QtChart import *
+from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
-from UI.main_window import Ui_MainWindow
-from UI.compass import CompassWidget
+from UI.mainWindow import Ui_MainWindow
+from UI.compassWidget import CompassWidget
 import signal
+from db import sqlite3DB 
+from datetime import datetime
 
 signal.signal(signal.SIGINT, signal.SIG_DFL) # Force Close with ctrl+c
 
 faulthandler.enable() # Properly show Qt faults 
 
 # Define device USB IDs
-idVendor = 1156
-idProduct = 22339
+idVendor = 5511
+idProduct = 63322
+
 
 class WorkerSignals(QObject):
     '''
@@ -81,14 +86,20 @@ class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
 
+        self.DB = sqlite3DB("weatherStation.db")
+
         self.close = False
         self.is_connected = False
         self.is_configured = False
         self.dev = None
         self.status = "checking"
+        self.USBString = ""
 
         self.window = Ui_MainWindow()
         self.window.setupUi(self)
+        
+        self.window.textBrowser.setReadOnly(True)
+        self.window.textBrowser.setCursorWidth(0)
         
         self.compass = CompassWidget()
         self.window.compassLayout.addWidget(self.compass)
@@ -99,15 +110,58 @@ class MainWindow(QMainWindow):
         if isinstance(geometry, QByteArray):
             self.restoreGeometry(geometry)
 
-        self.setWindAngle(10)
-        self.setWindSpeed(4)
-        self.setTemperature(26)
-        self.setLightIntensity(100)
-        self.setHumidity(60)
-        self.setPressure(800)
-        self.setDate("Sunday, August 30, 2020")
-        self.setTime("22:30:45")
+        # Update the home tab with last received data
+        self.updateHomeTab()
 
+        series = QLineSeries()
+        series.append(0, 6)
+        series.append(2, 4)
+        series.append(3, 8)
+        series.append(7, 4)
+        series.append(10, 5)
+        
+        chart = QChart()
+        chart.addSeries(series)
+        chart.setTitle("Temperature records in celcius")
+
+        chart.createDefaultAxes()
+        chart.axisX(series).setTitleText("time")
+        chart.axisY(series).setTitleText("Temperature")
+        
+        chart.legend().setVisible(False)
+        
+        chartView = QChartView(chart)
+        chartView.setRenderHint(QPainter.Antialiasing)
+        chartView.setMinimumSize(300, 300)
+        self.window.chartTabContents.addWidget(chartView)
+        
+        series = QLineSeries()
+        series.append(0, 9)
+        series.append(2, 5)
+        series.append(3, 8)
+        series.append(7, 4)
+        series.append(10, 5)
+        
+        chart = QChart()
+        chart.addSeries(series)
+        chart.setTitle("Temperature records in celcius")
+
+        chart.createDefaultAxes()
+        chart.axisX(series).setTitleText("time")
+        chart.axisY(series).setTitleText("Temperature")
+        
+        chart.legend().setVisible(False)
+        
+        chartView = QChartView(chart)
+        chartView.setRenderHint(QPainter.Antialiasing)
+        chartView.setMinimumSize(300, 300)
+        self.window.chartTabContents.addWidget(chartView)
+        
+        
+        self.window.chartTabScrollArea.setWindowFlags(Qt.FramelessWindowHint)
+        self.window.chartTabScrollArea.setAttribute(Qt.WA_TranslucentBackground)
+        self.window.chartTabScrollArea.setStyleSheet("background:transparent;")
+        
 	# check device connection status before showing window
         self.check_if_device_connected()
 
@@ -119,10 +173,18 @@ class MainWindow(QMainWindow):
         # Execute
         self.threadpool.start(self.worker)
 
-    def progress_fn(self, n):
-        self.window.textBrowser.insertPlainText(n + "\n")
-        if self.window.checkBox.isChecked():
-            self.window.textBrowser.verticalScrollBar().setValue(self.window.textBrowser.verticalScrollBar().maximum())
+    def progress_fn(self, data):
+        # Fill USBString with received data 
+        if data.startswith("["):
+            # It is string start
+            self.USBString = data
+        else:
+            # It is rest of data
+            self.USBString += data
+        # IF hole string received proccess and insert new data
+        if self.USBString.startswith("[") and self.USBString.endswith("]"):
+            # Remove completed data indicators from string and pass into insertData function, to insert to db
+            self.insertData(self.USBString.strip("[").strip("]"))
 
     def execute_this_fn(self, progress_callback):
         while True:
@@ -131,7 +193,7 @@ class MainWindow(QMainWindow):
             if self.is_connected:
                 try:
                     result = self.dev.read(0x81, 64, 60000)
-                    progress_callback.emit(result.tobytes().decode('utf-8',errors="ignore"))
+                    progress_callback.emit(result.tobytes().decode('utf-8', errors="ignore"))
                 except Exception as e:
                     print(e)
                     self.check_if_device_connected(True)
@@ -199,9 +261,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         # Confirm close
-        reply = QMessageBox.question(self, 'Window Close', 'Are you sure you want to close the window?',
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-
+        reply = QMessageBox.question(self, 'Window Close', 'Are you sure you want to close the window?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.Yes:
             # Save window geometry to restore next time
             self.settings.setValue('geometry', self.saveGeometry())
@@ -213,32 +273,44 @@ class MainWindow(QMainWindow):
             event.accept()
         else:
             event.ignore()
-            
-    def setWindAngle(self, angle):
-        self.compass.setAngle(angle)
-        self.window.windAngleText.setText(str(angle) + " °")
 
-    def setWindSpeed(self, speed):
-        self.window.windSpeedText.setText(str(speed) + " m/s")
-
-    def setTemperature(self, temperature):
-        self.window.temperatureText.setText(str(temperature) + " °C")
-
-    def setLightIntensity(self, lightIntensity):
-        self.window.lightIntensityText.setText(str(lightIntensity) + " lux")
-
-    def setHumidity(self, humidity):
-        self.window.humidityText.setText(str(humidity) + " %")
-
-    def setPressure(self, pressure):
-        self.window.pressureText.setText(str(pressure) + " hPa")
-
-    def setDate(self, date):
-        self.window.dateText.setText(str(date))
-
-    def setTime(self, time):
-        self.window.timeText.setText(str(time))        
+    def updateHomeTab(self):
+        '''Update the home tab with last received data'''
+        # Get last data
+        lastData = self.DB.getLastRow()
+        # Fill lastData with 0 if data not available
+        if lastData is None:
+            lastData = (0, 0, 0, 0, 0, 0, 0)
         
+        # Convert timestamp to datetime
+        date = datetime.fromtimestamp((lastData[6]))
+        
+        # Update home tab with last data
+        self.window.temperatureText.setText(str(lastData[0]) + " °C")
+        self.window.pressureText.setText(str(lastData[1]) + " hPa")
+        self.window.lightIntensityText.setText(str(lastData[2]) + " lux")
+        self.window.humidityText.setText(str(lastData[3]) + " %")
+        self.window.windSpeedText.setText(str(lastData[4]) + " m/s")
+        self.compass.setAngle(lastData[5])
+        self.window.windAngleText.setText(str(lastData[5]) + " °")
+        self.window.dateText.setText(date.strftime("%A, %-d %B %Y"))
+        self.window.timeText.setText(date.strftime("%I:%M %p"))        
+        
+    def insertData(self, data):
+        self.writeLog("Received data: " + data + " | Status: ")
+        data_list = data.split(',')
+        if len(data_list) == 8:
+            self.DB.insert(data_list)
+            self.writeLog("Successfully inserted to db\n")
+            self.updateHomeTab()
+        else: 
+            self.writeLog("Invalid data\n")
+        
+    def writeLog(self, text):
+        self.window.textBrowser.moveCursor(QTextCursor.End)
+        self.window.textBrowser.insertPlainText(text)
+        if self.window.checkBox.isChecked():
+            self.window.textBrowser.verticalScrollBar().setValue(self.window.textBrowser.verticalScrollBar().maximum())
         
         
 if __name__ == "__main__":

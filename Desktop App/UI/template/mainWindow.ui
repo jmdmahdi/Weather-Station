@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>450</width>
-    <height>429</height>
+    <height>477</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -16,11 +16,17 @@
     <verstretch>0</verstretch>
    </sizepolicy>
   </property>
+  <property name="minimumSize">
+   <size>
+    <width>450</width>
+    <height>477</height>
+   </size>
+  </property>
   <property name="windowTitle">
    <string>Weather Station</string>
   </property>
   <property name="toolTip">
-   <string>Weather Station</string>
+   <string/>
   </property>
   <property name="statusTip">
    <string/>
@@ -32,11 +38,14 @@
    <property name="mouseTracking">
     <bool>false</bool>
    </property>
+   <property name="toolTip">
+    <string/>
+   </property>
    <property name="autoFillBackground">
     <bool>true</bool>
    </property>
-   <layout class="QVBoxLayout" name="verticalLayout_2">
-    <item>
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="0">
      <widget class="QTabWidget" name="tabWidget">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -603,13 +612,40 @@
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="chatTab">
+      <widget class="QWidget" name="chartTab">
        <attribute name="title">
         <string>Charts</string>
        </attribute>
-       <layout class="QVBoxLayout" name="verticalLayout_4"/>
+       <layout class="QGridLayout" name="gridLayout_2">
+        <item row="0" column="0">
+         <widget class="QScrollArea" name="scrollArea">
+          <property name="widgetResizable">
+           <bool>true</bool>
+          </property>
+          <widget class="QWidget" name="chartTabScrollArea">
+           <property name="geometry">
+            <rect>
+             <x>0</x>
+             <y>0</y>
+             <width>408</width>
+             <height>353</height>
+            </rect>
+           </property>
+           <layout class="QVBoxLayout" name="verticalLayout_2">
+            <item>
+             <layout class="QVBoxLayout" name="chartTabContents">
+              <property name="spacing">
+               <number>6</number>
+              </property>
+             </layout>
+            </item>
+           </layout>
+          </widget>
+         </widget>
+        </item>
+       </layout>
       </widget>
-      <widget class="QWidget" name="consoleTab">
+      <widget class="QWidget" name="logsTab">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
          <horstretch>0</horstretch>
@@ -617,13 +653,13 @@
         </sizepolicy>
        </property>
        <attribute name="title">
-        <string>Console</string>
+        <string>Logs</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout">
         <item>
          <widget class="QCheckBox" name="checkBox">
           <property name="text">
-           <string>auto scroll</string>
+           <string>Auto scroll</string>
           </property>
          </widget>
         </item>
@@ -649,6 +685,9 @@
           </property>
           <property name="documentTitle">
            <string/>
+          </property>
+          <property name="readOnly">
+           <bool>true</bool>
           </property>
          </widget>
         </item>
