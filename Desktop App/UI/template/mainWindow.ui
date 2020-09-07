@@ -619,6 +619,9 @@
        <layout class="QGridLayout" name="gridLayout_2">
         <item row="0" column="0">
          <widget class="QScrollArea" name="scrollArea">
+          <property name="autoFillBackground">
+           <bool>true</bool>
+          </property>
           <property name="widgetResizable">
            <bool>true</bool>
           </property>
@@ -628,7 +631,7 @@
              <x>0</x>
              <y>0</y>
              <width>408</width>
-             <height>353</height>
+             <height>364</height>
             </rect>
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -637,6 +640,70 @@
               <property name="spacing">
                <number>6</number>
               </property>
+              <item>
+               <layout class="QHBoxLayout" name="horizontalLayout_4">
+                <item>
+                 <spacer name="horizontalSpacer_19">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
+                 <widget class="QDateEdit" name="dateEdit">
+                  <property name="toolTip">
+                   <string>dd/MM/yyyy</string>
+                  </property>
+                  <property name="displayFormat">
+                   <string>dd/MM/yyyy</string>
+                  </property>
+                  <property name="date">
+                   <date>
+                    <year>2020</year>
+                    <month>7</month>
+                    <day>1</day>
+                   </date>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QDateEdit" name="dateEdit_2">
+                  <property name="toolTip">
+                   <string>dd/MM/yyyy</string>
+                  </property>
+                  <property name="displayFormat">
+                   <string>dd/MM/yyyy</string>
+                  </property>
+                  <property name="date">
+                   <date>
+                    <year>2020</year>
+                    <month>7</month>
+                    <day>8</day>
+                   </date>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <spacer name="horizontalSpacer_20">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+               </layout>
+              </item>
              </layout>
             </item>
            </layout>
@@ -653,13 +720,19 @@
         </sizepolicy>
        </property>
        <attribute name="title">
-        <string>Logs</string>
+        <string>Log</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout">
         <item>
          <widget class="QCheckBox" name="checkBox">
           <property name="text">
            <string>Auto scroll</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+          <property name="tristate">
+           <bool>false</bool>
           </property>
          </widget>
         </item>
@@ -703,7 +776,7 @@
      <x>0</x>
      <y>0</y>
      <width>450</width>
-     <height>31</height>
+     <height>22</height>
     </rect>
    </property>
   </widget>

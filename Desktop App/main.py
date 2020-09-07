@@ -3,19 +3,20 @@ import time
 import traceback
 import usb
 import faulthandler
-from PyQt5.QtChart import *
 from PyQt5.QtGui import *
+from PyQt5.QtChart import *
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from UI.mainWindow import Ui_MainWindow
-from UI.compassWidget import CompassWidget
+from UI.compassWidget import compassWidget
+from UI.chartWidget import chartWidget
 import signal
-from db import sqlite3DB 
+from db import sqlite3DB
 from datetime import datetime
 
-signal.signal(signal.SIGINT, signal.SIG_DFL) # Force Close with ctrl+c
+signal.signal(signal.SIGINT, signal.SIG_DFL)  # Force Close with ctrl+c
 
-faulthandler.enable() # Properly show Qt faults 
+faulthandler.enable()  # Properly show Qt faults
 
 # Define device USB IDs
 idVendor = 5511
@@ -97,13 +98,13 @@ class MainWindow(QMainWindow):
 
         self.window = Ui_MainWindow()
         self.window.setupUi(self)
-        
+
         self.window.textBrowser.setReadOnly(True)
         self.window.textBrowser.setCursorWidth(0)
-        
-        self.compass = CompassWidget()
+
+        self.compass = compassWidget()
         self.window.compassLayout.addWidget(self.compass)
-        
+
         # Restore last time window geometry
         self.settings = QSettings('JMDMahdi', 'WeatherStation')
         geometry = self.settings.value('geometry', '')
@@ -113,56 +114,25 @@ class MainWindow(QMainWindow):
         # Update the home tab with last received data
         self.updateHomeTab()
 
-        series = QLineSeries()
-        series.append(0, 6)
-        series.append(2, 4)
-        series.append(3, 8)
-        series.append(7, 4)
-        series.append(10, 5)
-        
-        chart = QChart()
-        chart.addSeries(series)
-        chart.setTitle("Temperature records in celcius")
+        # Define chart tab charts and add them to view
+        self.temperatureChart = chartWidget(None, "Temperature records in celcius", "Time", "Temperature")
+        self.window.chartTabContents.addWidget(self.temperatureChart)
+        self.pressureChart = chartWidget(None, "Pressure records in hPa", "Time", "Pressure")
+        self.window.chartTabContents.addWidget(self.pressureChart)
+        self.LightIntensityChart = chartWidget(None, "Light intensity records in lux", "Time", "Light intensity")
+        self.window.chartTabContents.addWidget(self.LightIntensityChart)
+        self.humidityChart = chartWidget(None, "Humidity records in percent", "Time", "Humidity")
+        self.window.chartTabContents.addWidget(self.humidityChart)
+        self.windSpeedChart = chartWidget(None, "Wind speed records in m/s", "Time", "Wind speed")
+        self.window.chartTabContents.addWidget(self.windSpeedChart)
 
-        chart.createDefaultAxes()
-        chart.axisX(series).setTitleText("time")
-        chart.axisY(series).setTitleText("Temperature")
-        
-        chart.legend().setVisible(False)
-        
-        chartView = QChartView(chart)
-        chartView.setRenderHint(QPainter.Antialiasing)
-        chartView.setMinimumSize(300, 300)
-        self.window.chartTabContents.addWidget(chartView)
-        
-        series = QLineSeries()
-        series.append(0, 9)
-        series.append(2, 5)
-        series.append(3, 8)
-        series.append(7, 4)
-        series.append(10, 5)
-        
-        chart = QChart()
-        chart.addSeries(series)
-        chart.setTitle("Temperature records in celcius")
+        self.updateChartTab()
 
-        chart.createDefaultAxes()
-        chart.axisX(series).setTitleText("time")
-        chart.axisY(series).setTitleText("Temperature")
-        
-        chart.legend().setVisible(False)
-        
-        chartView = QChartView(chart)
-        chartView.setRenderHint(QPainter.Antialiasing)
-        chartView.setMinimumSize(300, 300)
-        self.window.chartTabContents.addWidget(chartView)
-        
-        
         self.window.chartTabScrollArea.setWindowFlags(Qt.FramelessWindowHint)
         self.window.chartTabScrollArea.setAttribute(Qt.WA_TranslucentBackground)
         self.window.chartTabScrollArea.setStyleSheet("background:transparent;")
-        
-	# check device connection status before showing window
+
+        # check device connection status before showing window
         self.check_if_device_connected()
 
         self.threadpool = QThreadPool()
@@ -204,12 +174,14 @@ class MainWindow(QMainWindow):
 
     def device_connected(self):
         if self.status != "connected":
+            self.writeLog("Device connected\n")
             self.window.statusbar.showMessage('Connected')
             self.window.statusbar.setStyleSheet('color: green')
             self.status = "connected"
 
     def device_disconnected(self):
         if self.status != "disconnected":
+            self.writeLog("Device disconnected\n")
             self.window.statusbar.showMessage('Disconnected')
             self.window.statusbar.setStyleSheet('color: red')
             self.status = "disconnected"
@@ -261,7 +233,8 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         # Confirm close
-        reply = QMessageBox.question(self, 'Window Close', 'Are you sure you want to close the window?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        reply = QMessageBox.question(self, 'Window Close', 'Are you sure you want to close the window?',
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.Yes:
             # Save window geometry to restore next time
             self.settings.setValue('geometry', self.saveGeometry())
@@ -280,11 +253,11 @@ class MainWindow(QMainWindow):
         lastData = self.DB.getLastRow()
         # Fill lastData with 0 if data not available
         if lastData is None:
-            lastData = (0, 0, 0, 0, 0, 0, 0)
-        
+            lastData = (27, 860, 325, 66, 4, 289, 1599499339)
+
         # Convert timestamp to datetime
         date = datetime.fromtimestamp((lastData[6]))
-        
+
         # Update home tab with last data
         self.window.temperatureText.setText(str(lastData[0]) + " °C")
         self.window.pressureText.setText(str(lastData[1]) + " hPa")
@@ -294,25 +267,58 @@ class MainWindow(QMainWindow):
         self.compass.setAngle(lastData[5])
         self.window.windAngleText.setText(str(lastData[5]) + " °")
         self.window.dateText.setText(date.strftime("%A, %-d %B %Y"))
-        self.window.timeText.setText(date.strftime("%I:%M %p"))        
-        
+        self.window.timeText.setText(date.strftime("%I:%M %p"))
+
     def insertData(self, data):
-        self.writeLog("Received data: " + data + " | Status: ")
+        self.writeLog("Received data: " + data + " | Status: ", False)
         data_list = data.split(',')
         if len(data_list) == 8:
             self.DB.insert(data_list)
             self.writeLog("Successfully inserted to db\n")
             self.updateHomeTab()
-        else: 
+        else:
             self.writeLog("Invalid data\n")
-        
-    def writeLog(self, text):
+
+    def writeLog(self, text, insertTime = True):
         self.window.textBrowser.moveCursor(QTextCursor.End)
+        if insertTime:
+            self.window.textBrowser.insertPlainText(datetime.now().strftime("%a %b %d %H:%M:%S.%f %Y")+"> ")
         self.window.textBrowser.insertPlainText(text)
         if self.window.checkBox.isChecked():
             self.window.textBrowser.verticalScrollBar().setValue(self.window.textBrowser.verticalScrollBar().maximum())
+
+    def updateChartTab(self):
+        series = QLineSeries()
+        from random import randrange
+        for x in range(8):
+            series.append(QDateTime.fromString('2018-07-0'+str(x+1)+' 13:06:38', "yyyy-MM-dd hh:mm:ss").toMSecsSinceEpoch(), randrange(36,24,-1))
+        self.temperatureChart.setSeries(series)
+
+        series = QLineSeries()
+        series.append(5, 6)
+        series.append(6, 7)
+        series.append(7, 8)
+        self.pressureChart.setSeries(series)
         
+        series = QLineSeries()
+        series.append(5, 6)
+        series.append(6, 7)
+        series.append(7, 8)
+        self.LightIntensityChart.setSeries(series)
         
+        series = QLineSeries()
+        series.append(5, 6)
+        series.append(6, 7)
+        series.append(7, 8)
+        self.humidityChart.setSeries(series)
+        
+        series = QLineSeries()
+        series.append(5, 6)
+        series.append(6, 7)
+        series.append(7, 8)
+        self.windSpeedChart.setSeries(series)
+        
+
 if __name__ == "__main__":
     app = QApplication(["Weather Station"])
     main_window = MainWindow()
