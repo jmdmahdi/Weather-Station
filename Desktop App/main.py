@@ -1,107 +1,45 @@
 import sys
 import time
-import traceback
 import usb
 import faulthandler
+from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtChart import *
-from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from UI.mainWindow import Ui_MainWindow
 from UI.compassWidget import compassWidget
 from UI.chartWidget import chartWidget
 import signal
-from db import sqlite3DB
-from datetime import datetime
+from DB.db import sqlite3DB
+from datetime import datetime, timedelta
+from Worker.worker import Worker
 
 signal.signal(signal.SIGINT, signal.SIG_DFL)  # Force Close with ctrl+c
 
 faulthandler.enable()  # Properly show Qt faults
 
-# Define device USB IDs
-idVendor = 5511
-idProduct = 63322
-
-
-class WorkerSignals(QObject):
-    '''
-    Defines the signals available from a running worker thread.
-
-    Supported signals are:
-
-    result
-        `object` data returned from processing, anything
-
-    progress
-        `int` indicating % progress
-
-    '''
-    error = pyqtSignal(tuple)
-    progress = pyqtSignal(str)
-
-
-class Worker(QRunnable):
-    '''
-    Worker thread
-
-    Inherits from QRunnable to handler worker thread setup, signals and wrap-up.
-
-    :param callback: The function callback to run on this worker thread. Supplied args and
-                     kwargs will be passed through to the runner.
-    :type callback: function
-    :param args: Arguments to pass to the callback function
-    :param kwargs: Keywords to pass to the callback function
-
-    '''
-
-    def __init__(self, fn, *args, **kwargs):
-        super(Worker, self).__init__()
-
-        # Store constructor arguments (re-used for processing)
-
-        self.fn = fn
-        self.args = args
-        self.kwargs = kwargs
-        self.signals = WorkerSignals()
-
-        # Add the callback to our kwargs
-        self.kwargs['progress_callback'] = self.signals.progress
-
-    @pyqtSlot()
-    def run(self):
-        '''
-        Initialise the runner function with passed args, kwargs.
-        '''
-
-        # Retrieve args/kwargs here; and fire processing using them
-        try:
-            self.fn(*self.args, **self.kwargs)
-        except:
-            traceback.print_exc()
-            exctype, value = sys.exc_info()[:2]
-            self.signals.error.emit((exctype, value, traceback.format_exc()))
-
-
 class MainWindow(QMainWindow):
 
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
-
-        self.DB = sqlite3DB("weatherStation.db")
-
+        # Define DB instance
+        self.DB = sqlite3DB("DB/weatherStation.db")
+	# Define properties
         self.close = False
         self.is_connected = False
         self.is_configured = False
         self.dev = None
         self.status = "checking"
         self.USBString = ""
-
+        
+        # Define main ui
         self.window = Ui_MainWindow()
         self.window.setupUi(self)
-
+        
+        # Set log textBrowser as read only
         self.window.textBrowser.setReadOnly(True)
         self.window.textBrowser.setCursorWidth(0)
-
+        # Generate compass widget
         self.compass = compassWidget()
         self.window.compassLayout.addWidget(self.compass)
 
@@ -115,35 +53,21 @@ class MainWindow(QMainWindow):
         self.updateHomeTab()
 
         # Define chart tab charts and add them to view
-        self.temperatureChart = chartWidget(None, "Temperature records in celcius", "Time", "Temperature")
-        self.window.chartTabContents.addWidget(self.temperatureChart)
-        self.pressureChart = chartWidget(None, "Pressure records in hPa", "Time", "Pressure")
-        self.window.chartTabContents.addWidget(self.pressureChart)
-        self.LightIntensityChart = chartWidget(None, "Light intensity records in lux", "Time", "Light intensity")
-        self.window.chartTabContents.addWidget(self.LightIntensityChart)
-        self.humidityChart = chartWidget(None, "Humidity records in percent", "Time", "Humidity")
-        self.window.chartTabContents.addWidget(self.humidityChart)
-        self.windSpeedChart = chartWidget(None, "Wind speed records in m/s", "Time", "Wind speed")
-        self.window.chartTabContents.addWidget(self.windSpeedChart)
-
-        self.updateChartTab()
-
-        self.window.chartTabScrollArea.setWindowFlags(Qt.FramelessWindowHint)
-        self.window.chartTabScrollArea.setAttribute(Qt.WA_TranslucentBackground)
-        self.window.chartTabScrollArea.setStyleSheet("background:transparent;")
+        self.generateCharts()
 
         # check device connection status before showing window
         self.check_if_device_connected()
 
         self.threadpool = QThreadPool()
-        # Pass the function to execute
-        self.worker = Worker(self.execute_this_fn)  # Any other args, kwargs are passed to the run function
-        self.worker.signals.progress.connect(self.progress_fn)
+        
+        # Pass the function to execute in background
+        self.worker = Worker(self.USB_process)
+        self.worker.signals.progress.connect(self.processData)
 
         # Execute
         self.threadpool.start(self.worker)
 
-    def progress_fn(self, data):
+    def processData(self, data):
         # Fill USBString with received data 
         if data.startswith("["):
             # It is string start
@@ -156,23 +80,29 @@ class MainWindow(QMainWindow):
             # Remove completed data indicators from string and pass into insertData function, to insert to db
             self.insertData(self.USBString.strip("[").strip("]"))
 
-    def execute_this_fn(self, progress_callback):
+    def USB_process(self, process_callback):
+        # Check device status continuously
         while True:
-            if self.close:
+            if self.close: # End thread on close signal
                 return
             if self.is_connected:
+                # Wait for data from device 
                 try:
+                    # Get USB data and pass to main thread to process
                     result = self.dev.read(0x81, 64, 60000)
-                    progress_callback.emit(result.tobytes().decode('utf-8', errors="ignore"))
+                    process_callback.emit(result.tobytes().decode('utf-8', errors="ignore"))
                 except Exception as e:
                     print(e)
+                    # Recheck device status
                     self.check_if_device_connected(True)
                     pass
             else:
+                # Recheck device status every 1 secound if device not connected
                 time.sleep(1)
                 self.check_if_device_connected(True)
 
     def device_connected(self):
+        # Set device status on UI as connected
         if self.status != "connected":
             self.writeLog("Device connected\n")
             self.window.statusbar.showMessage('Connected')
@@ -180,6 +110,7 @@ class MainWindow(QMainWindow):
             self.status = "connected"
 
     def device_disconnected(self):
+        # Set device status on UI as disconnected
         if self.status != "disconnected":
             self.writeLog("Device disconnected\n")
             self.window.statusbar.showMessage('Disconnected')
@@ -187,7 +118,8 @@ class MainWindow(QMainWindow):
             self.status = "disconnected"
 
     def find_device(self):
-        dev_g = usb.core.find(idVendor=idVendor, idProduct=idProduct, find_all=True)
+        # Search connected device for our device and return device descriptor
+        dev_g = usb.core.find(idVendor=5511, idProduct=63322, find_all=True)
         dev_list = list(dev_g)
         if dev_list is None:
             return None
@@ -201,18 +133,24 @@ class MainWindow(QMainWindow):
         return dev
 
     def check_if_device_connected(self, force=False):
+        # Search for our device
         self.dev = self.find_device()
         if self.dev is None:
             self.is_connected = False
             self.is_configured = False
+            # Set status on UI
             self.device_disconnected()
         else:
             self.is_connected = True
+            # Set status on UI
             self.device_connected()
+            # Gain access to read the device if not done already
             if force or not self.is_configured:
+                # This must be done on every connection
                 self.config_device()
 
     def config_device(self):
+        # Gain access to device
         try:
             self.dev.reset()
         except:
@@ -260,7 +198,7 @@ class MainWindow(QMainWindow):
 
         # Update home tab with last data
         self.window.temperatureText.setText(str(lastData[0]) + " °C")
-        self.window.pressureText.setText(str(lastData[1]) + " hPa")
+        self.window.pressureText.setText(str(lastData[1] / 100) + " hPa")
         self.window.lightIntensityText.setText(str(lastData[2]) + " lux")
         self.window.humidityText.setText(str(lastData[3]) + " %")
         self.window.windSpeedText.setText(str(lastData[4]) + " m/s")
@@ -279,48 +217,73 @@ class MainWindow(QMainWindow):
         else:
             self.writeLog("Invalid data\n")
 
-    def writeLog(self, text, insertTime = True):
+    def writeLog(self, text, insertTime=True):
         self.window.textBrowser.moveCursor(QTextCursor.End)
         if insertTime:
-            self.window.textBrowser.insertPlainText(datetime.now().strftime("%a %b %d %H:%M:%S.%f %Y")+"> ")
+            self.window.textBrowser.insertPlainText(datetime.now().strftime("%a %b %d %H:%M:%S.%f %Y") + "> ")
         self.window.textBrowser.insertPlainText(text)
         if self.window.checkBox.isChecked():
             self.window.textBrowser.verticalScrollBar().setValue(self.window.textBrowser.verticalScrollBar().maximum())
 
-    def updateChartTab(self):
-        series = QLineSeries()
-        from random import randrange
-        for x in range(8):
-            series.append(QDateTime.fromString('2018-07-0'+str(x+1)+' 13:06:38', "yyyy-MM-dd hh:mm:ss").toMSecsSinceEpoch(), randrange(36,24,-1))
-        self.temperatureChart.setSeries(series)
+    def generateCharts(self):
+        # Add chart widgets
+        self.temperatureChart = chartWidget(None, "Temperature records in celcius", "Time", "Temperature")
+        self.window.chartTabContents.addWidget(self.temperatureChart)
+        self.pressureChart = chartWidget(None, "Pressure records in Pa", "Time", "Pressure")
+        self.window.chartTabContents.addWidget(self.pressureChart)
+        self.LightIntensityChart = chartWidget(None, "Light intensity records in lux", "Time", "Light intensity")
+        self.window.chartTabContents.addWidget(self.LightIntensityChart)
+        self.humidityChart = chartWidget(None, "Humidity records in percent", "Time", "Humidity")
+        self.window.chartTabContents.addWidget(self.humidityChart)
+        self.windSpeedChart = chartWidget(None, "Wind speed records in m/s", "Time", "Wind speed")
+        self.window.chartTabContents.addWidget(self.windSpeedChart)
+        # Update dateEdits date 
+        today = datetime.now()
+        week_ago = today - timedelta(days=7)
+        self.window.firstDate.setDate(week_ago.date())
+        self.window.secondDate.setDate(today.date())
+        # Call updateCharts on date changes
+        self.window.firstDate.dateChanged.connect(self.updateCharts)
+        self.window.secondDate.dateChanged.connect(self.updateCharts)
+        # Update charts series from db
+        self.updateCharts()
 
-        series = QLineSeries()
-        series.append(5, 6)
-        series.append(6, 7)
-        series.append(7, 8)
-        self.pressureChart.setSeries(series)
-        
-        series = QLineSeries()
-        series.append(5, 6)
-        series.append(6, 7)
-        series.append(7, 8)
-        self.LightIntensityChart.setSeries(series)
-        
-        series = QLineSeries()
-        series.append(5, 6)
-        series.append(6, 7)
-        series.append(7, 8)
-        self.humidityChart.setSeries(series)
-        
-        series = QLineSeries()
-        series.append(5, 6)
-        series.append(6, 7)
-        series.append(7, 8)
-        self.windSpeedChart.setSeries(series)
-        
+    def updateCharts(self):
+        # Get dates
+        secondDate = self.window.secondDate.date().toPyDate()
+        firstDate = self.window.firstDate.date().toPyDate()
+        # Generate start and end date based on dates
+        if firstDate < secondDate:
+            startDate = datetime.combine(firstDate, datetime.min.time())
+            endDate = datetime.combine(secondDate, datetime.max.time())
+        else:
+            endDate = datetime.combine(firstDate, datetime.max.time())
+            startDate = datetime.combine(secondDate, datetime.min.time())
+        # Get rows between start and end date
+        rows = self.DB.getDataBetween(startDate.timestamp(), endDate.timestamp())
+        # define QLineSeries instants
+        temperatureSeries = QLineSeries()
+        pressureSeries = QLineSeries()
+        LightIntensitySeries = QLineSeries()
+        humiditySeries = QLineSeries()
+        windSpeedSeries = QLineSeries()
+        # Fill series with db data
+        for row in rows:
+            temperatureSeries.append(int(row[6] * 1000), row[0])
+            pressureSeries.append(int(row[6] * 1000), row[1])
+            LightIntensitySeries.append(int(row[6] * 1000), row[2])
+            humiditySeries.append(int(row[6] * 1000), row[3])
+            windSpeedSeries.append(int(row[6] * 1000), row[4])
+        # Update series with new ones
+        self.temperatureChart.setSeries(temperatureSeries)
+        self.pressureChart.setSeries(pressureSeries)
+        self.LightIntensityChart.setSeries(LightIntensitySeries)
+        self.humidityChart.setSeries(humiditySeries)
+        self.windSpeedChart.setSeries(windSpeedSeries)
+
 
 if __name__ == "__main__":
     app = QApplication(["Weather Station"])
-    main_window = MainWindow()
-    main_window.show()
+    window = MainWindow()
+    window.show()
     sys.exit(app.exec_())

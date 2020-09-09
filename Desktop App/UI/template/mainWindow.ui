@@ -630,8 +630,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>408</width>
-             <height>364</height>
+             <width>420</width>
+             <height>371</height>
             </rect>
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -656,7 +656,7 @@
                  </spacer>
                 </item>
                 <item>
-                 <widget class="QDateEdit" name="dateEdit">
+                 <widget class="QDateEdit" name="firstDate">
                   <property name="toolTip">
                    <string>dd/MM/yyyy</string>
                   </property>
@@ -673,7 +673,7 @@
                  </widget>
                 </item>
                 <item>
-                 <widget class="QDateEdit" name="dateEdit_2">
+                 <widget class="QDateEdit" name="secondDate">
                   <property name="toolTip">
                    <string>dd/MM/yyyy</string>
                   </property>
@@ -776,7 +776,7 @@
      <x>0</x>
      <y>0</y>
      <width>450</width>
-     <height>22</height>
+     <height>26</height>
     </rect>
    </property>
   </widget>

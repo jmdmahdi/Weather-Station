@@ -18,12 +18,12 @@ class chartWidget(QChartView):
         self._series = QLineSeries()
 
         self._chart = QChart()
-        
+
         self._chart.setAnimationOptions(QChart.SeriesAnimations)
         self._chart.legend().setVisible(False)
-        
+
         self._chart.addSeries(self._series)
-        
+
         self.updateSeries()
 
         self._chart.setTitle(title)
@@ -43,17 +43,17 @@ class chartWidget(QChartView):
             self._chart.removeAxis(self.axisX)
         self.axisX = QDateTimeAxis()
         self.axisX.setTickCount(self.calculateTick())
-        self.axisX.setFormat("d MMMM hh:mm")
+        self.axisX.setFormat("d MMM hh:mm")
         self.axisX.setTitleText(self.XTitle)
         self._chart.addAxis(self.axisX, Qt.AlignBottom)
-        
+
         if self.axisY is not None:
             self._chart.removeAxis(self.axisY)
         self.axisY = QValueAxis()
         self.axisY.setLabelFormat("%i")
         self.axisY.setTitleText(self.YTitle)
         self._chart.addAxis(self.axisY, Qt.AlignLeft)
-        
+
         self._series.attachAxis(self.axisX)
         self._series.attachAxis(self.axisY)
 
@@ -67,7 +67,7 @@ class chartWidget(QChartView):
     def calculateTick(self):
         width = self.frameGeometry().width()
         return int(round((width * 3) / 376))
-        
+
     @pyqtSlot(QLineSeries)
     def setSeries(self, series):
         self.old_series = self._series
