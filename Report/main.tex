@@ -1,6 +1,7 @@
 \documentclass[12pt,a4paper]{article}    
 
 \usepackage[justification=centering]{caption}
+\usepackage[bottom]{footmisc}
 \usepackage[margin=2.32cm]{geometry}
 \usepackage[hidelinks]{hyperref}
 \usepackage{amssymb}
@@ -12,13 +13,15 @@
 \usepackage[space]{grffile}
 \usepackage[localise]{xepersian}
 
-\settextfont[Scale=1]{B Nazanin}
-\setlatintextfont[Scale=0.8]{Times New Roman}
-\setdigitfont[Scale=0.8]{Persian Modern}
+\settextfont[Scale=1]{IRMitra}
+\setlatintextfont[Scale=.88]{Times New Roman}
+
+\defpersianfont\titleFont[Scale=1.5]{IRMitra Bold}
 \DefaultMathsDigits
-\parindent 0pt
-\titleformat{\section}[display]{\normalfont\bfseries}{}{0pt}{\LARGE}
+
+\titleformat*{\section}{\LARGE\bfseries}
 \titleformat*{\subsection}{\large\bfseries}
+
 \bibliographystyle{ieeetr-fa}
 
 
@@ -35,7 +38,7 @@
 	\newpage \setcounter{page}{0} \pagenumbering{arabic} \setcounter{page}{1} \baselineskip1.1\baselineskip 
 	\zmakeperpage{footnote}
 	
-	\input{parts/intro.tex}
+	\input{parts/body.tex}
 	
 	\bibliography{lib}
 	
