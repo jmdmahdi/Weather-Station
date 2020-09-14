@@ -18,15 +18,6 @@ faulthandler.enable()
 _CloseApp = False
 
 
-def closeApp(sig, frame=None):
-    global _CloseApp
-    # Ignore additional signals
-    signal.signal(sig, signal.SIG_IGN)
-    # Tell background process to stop
-    _CloseApp = True
-    print("\rClosing app ...")
-
-
 class MainWindow(QMainWindow):
 
     def __init__(self, *args, **kwargs):
@@ -105,7 +96,7 @@ class MainWindow(QMainWindow):
                 except Exception as e:
                     if "Operation timed out" in str(e):
                         continue
-                    print(e)
+                    print("self.dev.read error: " + str(e))
                     # Recheck device status
                     self.check_if_device_connected(True)
                     pass
@@ -217,7 +208,7 @@ class MainWindow(QMainWindow):
         self.window.lightIntensityText.setText(str(lastData[2]) + " lux")
         self.window.humidityText.setText(str(lastData[3]) + " %")
         self.window.windSpeedText.setText(str(lastData[4]) + " m/s")
-        self.compass.setAngle(lastData[5])
+        self.compass.setAngle(int(lastData[5]))
         self.window.windAngleText.setText(str(lastData[5]) + " °")
         if platform.system() != "Windows":
             self.window.dateText.setText(date.strftime("%A, %-d %B %Y"))
@@ -298,6 +289,15 @@ class MainWindow(QMainWindow):
         self.LightIntensityChart.setSeries(LightIntensitySeries)
         self.humidityChart.setSeries(humiditySeries)
         self.windSpeedChart.setSeries(windSpeedSeries)
+
+
+def closeApp(sig, frame=None):
+    global _CloseApp
+    # Ignore additional signals
+    signal.signal(sig, signal.SIG_IGN)
+    # Tell background process to stop
+    _CloseApp = True
+    print("\rClosing app ...")
 
 
 if __name__ == "__main__":
