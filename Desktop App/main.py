@@ -1,7 +1,4 @@
-import sys
-import time
-import usb
-import faulthandler
+import sys, signal, platform, time, usb, faulthandler
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtChart import *
@@ -9,14 +6,26 @@ from PyQt5.QtWidgets import *
 from UI.mainWindow import Ui_MainWindow
 from UI.compassWidget import compassWidget
 from UI.chartWidget import chartWidget
-import signal
 from DB.db import sqlite3DB
 from datetime import datetime, timedelta
 from Worker.worker import Worker
+from Worker.signalWakeupHandler import SignalWakeupHandler
 
-signal.signal(signal.SIGINT, signal.SIG_DFL)  # Force Close with ctrl+c
+# Properly show Qt faults
+faulthandler.enable()
 
-faulthandler.enable()  # Properly show Qt faults
+# Define global variables
+_CloseApp = False
+
+
+def closeApp(sig, frame=None):
+    global _CloseApp
+    # Ignore additional signals
+    signal.signal(sig, signal.SIG_IGN)
+    # Tell background process to stop
+    _CloseApp = True
+    print("\rClosing app ...")
+
 
 class MainWindow(QMainWindow):
 
@@ -24,18 +33,17 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__(*args, **kwargs)
         # Define DB instance
         self.DB = sqlite3DB("DB/weatherStation.db")
-	# Define properties
-        self.close = False
+        # Define properties
         self.is_connected = False
         self.is_configured = False
         self.dev = None
         self.status = "checking"
         self.USBString = ""
-        
+
         # Define main ui
         self.window = Ui_MainWindow()
         self.window.setupUi(self)
-        
+
         # Set log textBrowser as read only
         self.window.textBrowser.setReadOnly(True)
         self.window.textBrowser.setCursorWidth(0)
@@ -59,7 +67,7 @@ class MainWindow(QMainWindow):
         self.check_if_device_connected()
 
         self.threadpool = QThreadPool()
-        
+
         # Pass the function to execute in background
         self.worker = Worker(self.USB_process)
         self.worker.signals.progress.connect(self.processData)
@@ -81,17 +89,22 @@ class MainWindow(QMainWindow):
             self.insertData(self.USBString.strip("[").strip("]"))
 
     def USB_process(self, process_callback):
+        global _CloseApp
         # Check device status continuously
         while True:
-            if self.close: # End thread on close signal
+            if _CloseApp:  # End thread on close signal
+                # Close UI
+                QApplication.quit()
                 return
             if self.is_connected:
                 # Wait for data from device 
                 try:
                     # Get USB data and pass to main thread to process
-                    result = self.dev.read(0x81, 64, 60000)
+                    result = self.dev.read(0x81, 64, 2000)
                     process_callback.emit(result.tobytes().decode('utf-8', errors="ignore"))
                 except Exception as e:
+                    if "Operation timed out" in str(e):
+                        continue
                     print(e)
                     # Recheck device status
                     self.check_if_device_connected(True)
@@ -165,11 +178,13 @@ class MainWindow(QMainWindow):
         intf = usb.util.find_descriptor(cfg, bInterfaceNumber=1)
         if not intf:
             raise print("Interface not found")
-        if self.dev.is_kernel_driver_active(intf.bInterfaceNumber) is True:
-            self.dev.detach_kernel_driver(intf.bInterfaceNumber)
+        if platform.system() != "Windows":
+            if self.dev.is_kernel_driver_active(intf.bInterfaceNumber) is True:
+                self.dev.detach_kernel_driver(intf.bInterfaceNumber)
         self.is_configured = True
 
     def closeEvent(self, event):
+        global _CloseApp
         # Confirm close
         reply = QMessageBox.question(self, 'Window Close', 'Are you sure you want to close the window?',
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
@@ -177,7 +192,7 @@ class MainWindow(QMainWindow):
             # Save window geometry to restore next time
             self.settings.setValue('geometry', self.saveGeometry())
             # Tell worker to stop processing
-            self.close = True
+            _CloseApp = True
             # Wait for the worker to end
             self.threadpool.waitForDone()
             # Close app
@@ -204,7 +219,10 @@ class MainWindow(QMainWindow):
         self.window.windSpeedText.setText(str(lastData[4]) + " m/s")
         self.compass.setAngle(lastData[5])
         self.window.windAngleText.setText(str(lastData[5]) + " °")
-        self.window.dateText.setText(date.strftime("%A, %-d %B %Y"))
+        if platform.system() != "Windows":
+            self.window.dateText.setText(date.strftime("%A, %-d %B %Y"))
+        else:
+            self.window.dateText.setText(date.strftime("%A, %e %B %Y"))
         self.window.timeText.setText(date.strftime("%I:%M %p"))
 
     def insertData(self, data):
@@ -283,7 +301,13 @@ class MainWindow(QMainWindow):
 
 
 if __name__ == "__main__":
+    # Force Close with ctrl+c
+    signal.signal(signal.SIGINT, closeApp)
+    # Force Close on terminal close
+    signal.signal(signal.SIGTERM, closeApp)
+    # Start UI
     app = QApplication(["Weather Station"])
+    SignalWakeupHandler(app)
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
