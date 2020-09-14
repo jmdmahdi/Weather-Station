@@ -198,8 +198,7 @@ int SX1278_LoRaEntryRx(SX1278_t * module, uint8_t length, uint32_t timeout) {
 	SX1278_SPIWrite(module, LR_RegPayloadLength, length);//Payload Length 21byte(this register must difine when the data long of one byte in SF is 6)
 	addr = SX1278_SPIRead(module, LR_RegFifoRxBaseAddr); //Read RxBaseAddr
 	SX1278_SPIWrite(module, LR_RegFifoAddrPtr, addr); //RxBaseAddr->FiFoAddrPtr
-	SX1278_SPIWrite(module, LR_RegOpMode, 0x85);	//Mode//Low Frequency Mode
-	//SX1278_SPIWrite(module, LR_RegOpMode,0x05);	//Continuous Rx Mode //High Frequency Mode
+	SX1278_SPIWrite(module, LR_RegOpMode, 0x8d);	//Mode//Low Frequency Mode
 	module->readBytes = 0;
 
 	while (1) {

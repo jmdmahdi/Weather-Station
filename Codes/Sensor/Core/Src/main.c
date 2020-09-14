@@ -23,6 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <string.h>
 #include "BMP180.h"
 #include "MAX44009.h"
 #include "AHT10.h"
@@ -46,7 +47,7 @@
 #define HCSR05_ANGLE_DIFFERENCE 0
 
 // LoRa device id
-#define DEVICE_ID 123456
+#define DEVICE_ID 12345
 
 /* USER CODE END PD */
 
@@ -73,7 +74,7 @@ float_t X_axis_wind_speed = 0;
 float_t Y_axis_wind_speed = 0;
 float_t wind[2];
 float_t TXData[8];
-uint8_t *TXDataCast;
+uint8_t Buffer[64];
 SX1278_hw_t SX1278_hw;
 SX1278_t SX1278;
 /* USER CODE END PV */
@@ -154,13 +155,13 @@ int main(void) {
 	SX1278_hw.spi = &hspi1;
 	SX1278.hw = &SX1278_hw;
 	SX1278_begin(&SX1278, SX1278_433MHZ, SX1278_POWER_20DBM, SX1278_LORA_SF_10,
-			SX1278_LORA_BW_31_2KHZ, 16);
+			SX1278_LORA_BW_250KHZ, 64);
 
-	SX1278_LoRaEntryTx(&SX1278, 16, 2000);
+	SX1278_LoRaEntryTx(&SX1278, 64, 2000);
 
 	// Setting TXData constant values
 	TXData[0] = DEVICE_ID; // Sender device id
-	TXData[1] = 654321; // Receiver device id
+	TXData[1] = 65535; // Receiver device id
 
 	/* USER CODE END 2 */
 
@@ -192,13 +193,13 @@ int main(void) {
 
 		// Get X axis wind speed
 		HCSR05_Ready(X_axis_echo_GPIO_Port, X_axis_echo_Pin, &htim1,
-		TIM_CHANNEL_1, HCSR05_DISTANCE, HCSR05_ANGLE_DIFFERENCE);
+				TIM_CHANNEL_1, HCSR05_DISTANCE, HCSR05_ANGLE_DIFFERENCE);
 		X_axis_wind_speed = HCSR05_Get_WindSpeed((int8_t) BMP180_Temperature,
 				(uint32_t) BMP180_Pressure, (int8_t) TempHum[1]);
 
 		// Get Y axis wind speed
 		HCSR05_Ready(Y_axis_echo_GPIO_Port, Y_axis_echo_Pin, &htim1,
-		TIM_CHANNEL_2, HCSR05_DISTANCE, HCSR05_ANGLE_DIFFERENCE);
+				TIM_CHANNEL_2, HCSR05_DISTANCE, HCSR05_ANGLE_DIFFERENCE);
 		Y_axis_wind_speed = HCSR05_Get_WindSpeed((int8_t) BMP180_Temperature,
 				(uint32_t) BMP180_Pressure, (int8_t) TempHum[1]);
 
@@ -210,14 +211,14 @@ int main(void) {
 		TXData[7] = wind[1]; // Wind direction
 
 		// Transmit TXData
-		TXDataCast = (uint8_t*) TXData;
-		SX1278_transmit(&SX1278, TXDataCast, sizeof(TXDataCast), 3000);
+		memcpy(Buffer, TXData, sizeof(TXData));
+		SX1278_transmit(&SX1278, Buffer, sizeof(Buffer), 3000);
 
 		// Check workingMode pin status
-		// GPIO_PIN_SET: continuous mode
-		// GPIO_PIN_RESET: Normal working mode
+		// GPIO_PIN_SET: Normal working mode
+		// GPIO_PIN_RESET: Continuous mode
 		if (HAL_GPIO_ReadPin(workingMode_GPIO_Port, workingMode_Pin)
-				== GPIO_PIN_RESET) {
+				== GPIO_PIN_SET) {
 			// It is on normal working mode
 
 			/* Taking a rest after a hard work */
