@@ -11,9 +11,9 @@ from datetime import datetime, timedelta
 from Worker.worker import Worker
 from Worker.signalWakeupHandler import SignalWakeupHandler
 import usb.backend.libusb1
+import numpy as np
 
 backend = usb.backend.libusb1.get_backend(find_library=lambda x: "libusb-1.0.dll")
-
 
 # Properly show Qt faults
 faulthandler.enable()
@@ -58,32 +58,25 @@ class MainWindow(QMainWindow):
         # Define chart tab charts and add them to view
         self.generateCharts()
 
-        # check device connection status before showing window
-        self.check_if_device_connected()
+	# Set default statusbar text
+        self.window.statusbar.showMessage('Checking ...')
 
+        # Build background thread for USB
         self.threadpool = QThreadPool()
 
         # Pass the function to execute in background
         self.worker = Worker(self.USB_process)
         self.worker.signals.progress.connect(self.processData)
+        self.worker.signals.statusbar.connect(self.updateStatusBar)
 
         # Execute
         self.threadpool.start(self.worker)
 
     def processData(self, data):
-        # Fill USBString with received data 
-        if data.startswith("["):
-            # It is string start
-            self.USBString = data
-        else:
-            # It is rest of data
-            self.USBString += data
-        # IF hole string received proccess and insert new data
-        if self.USBString.startswith("[") and self.USBString.endswith("]"):
-            # Remove completed data indicators from string and pass into insertData function, to insert to db
-            self.insertData(self.USBString.strip("[").strip("]"))
+        # Remove completed data indicators from string and pass into insertData function, to insert to db
+        self.insertData(data)
 
-    def USB_process(self, process_callback):
+    def USB_process(self, process_callback, UIUpdateCallBack):
         global _CloseApp
         # Check device status continuously
         while True:
@@ -95,19 +88,23 @@ class MainWindow(QMainWindow):
                 # Wait for data from device 
                 try:
                     # Get USB data and pass to main thread to process
-                    result = self.dev.read(0x81, 64, 2000)
-                    process_callback.emit(result.tobytes().decode('utf-8', errors="ignore"))
+                    data = self.dev.read(0x81, 32, 2000)
+                    # Convert data to uint8 array
+                    dataBytes = np.array(data.tolist(), dtype=np.uint8)
+                    # Convert data to float list
+                    process_callback.emit(dataBytes.view(dtype=np.float32).tolist())
                 except Exception as e:
-                    if "Operation timed out" in str(e):
-                        continue
-                    print("self.dev.read error: " + str(e))
+                    if not ("Operation timed out" in str(e) or "Pipe error" in str(e) or "Input/Output Error" in str(e) or "No such device" in str(e)):
+                        print("self.dev.read error: " + str(e))
                     # Recheck device status
-                    self.check_if_device_connected(True)
+                    self.check_if_device_connected(UIUpdateCallBack, True)
+                    time.sleep(1)
                     pass
             else:
                 # Recheck device status every 1 secound if device not connected
                 time.sleep(1)
-                self.check_if_device_connected(True)
+                UIUpdateCallBack.emit(self.is_connected)
+                self.check_if_device_connected(UIUpdateCallBack, True)
 
     def device_connected(self):
         # Set device status on UI as connected
@@ -125,6 +122,12 @@ class MainWindow(QMainWindow):
             self.window.statusbar.setStyleSheet('color: red')
             self.status = "disconnected"
 
+    def updateStatusBar(self, status):
+        if status:
+            self.device_connected()
+        else:
+            self.device_disconnected()
+
     def find_device(self):
         # Search connected device for our device and return device descriptor
         dev_g = usb.core.find(backend=backend, idVendor=5511, idProduct=63322, find_all=True)
@@ -140,22 +143,20 @@ class MainWindow(QMainWindow):
                 return None
         return dev
 
-    def check_if_device_connected(self, force=False):
+    def check_if_device_connected(self, UIUpdateCallBack, force=False):
         # Search for our device
         self.dev = self.find_device()
         if self.dev is None:
             self.is_connected = False
             self.is_configured = False
-            # Set status on UI
-            self.device_disconnected()
         else:
             self.is_connected = True
-            # Set status on UI
-            self.device_connected()
             # Gain access to read the device if not done already
             if force or not self.is_configured:
                 # This must be done on every connection
                 self.config_device()
+        # Set status on UI
+        UIUpdateCallBack.emit(self.is_connected)
 
     def config_device(self):
         # Gain access to device
@@ -172,7 +173,7 @@ class MainWindow(QMainWindow):
         cfg = self.dev.get_active_configuration()
         intf = usb.util.find_descriptor(cfg, bInterfaceNumber=1)
         if not intf:
-            raise print("Interface not found")
+            raise("Interface not found")
         if platform.system() != "Windows":
             if self.dev.is_kernel_driver_active(intf.bInterfaceNumber) is True:
                 self.dev.detach_kernel_driver(intf.bInterfaceNumber)
@@ -201,7 +202,7 @@ class MainWindow(QMainWindow):
         lastData = self.DB.getLastRow()
         # Fill lastData with 0 if data not available
         if lastData is None:
-            lastData = (27, 860, 325, 66, 4, 289, 1599499339)
+            lastData = (0, 0, 0, 0, 0, 0, 0)
 
         # Convert timestamp to datetime
         date = datetime.fromtimestamp((lastData[6]))
@@ -221,14 +222,13 @@ class MainWindow(QMainWindow):
         self.window.timeText.setText(date.strftime("%I:%M %p"))
 
     def insertData(self, data):
-        self.writeLog("Received data: " + data + " | Status: ", False)
-        data_list = data.split(',')
-        if len(data_list) == 8:
-            self.DB.insert(data_list)
-            self.writeLog("Successfully inserted to db\n")
+        self.writeLog("Received data: " + " ,".join(map(str, data)) + " | Status: ")
+        if len(data) == 8:
+            self.DB.insert(data)
+            self.writeLog("Successfully inserted to db\n", False)
             self.updateHomeTab()
         else:
-            self.writeLog("Invalid data\n")
+            self.writeLog("Invalid data\n", False)
 
     def writeLog(self, text, insertTime=True):
         self.window.textBrowser.moveCursor(QTextCursor.End)

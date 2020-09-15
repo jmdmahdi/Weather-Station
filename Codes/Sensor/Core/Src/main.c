@@ -73,8 +73,8 @@ int8_t TempHum[2];
 float_t X_axis_wind_speed = 0;
 float_t Y_axis_wind_speed = 0;
 float_t wind[2];
-float_t TXData[8];
-uint8_t Buffer[64];
+float TXData[8];
+uint8_t Buffer[32];
 SX1278_hw_t SX1278_hw;
 SX1278_t SX1278;
 /* USER CODE END PV */
@@ -155,9 +155,9 @@ int main(void) {
 	SX1278_hw.spi = &hspi1;
 	SX1278.hw = &SX1278_hw;
 	SX1278_begin(&SX1278, SX1278_433MHZ, SX1278_POWER_20DBM, SX1278_LORA_SF_10,
-			SX1278_LORA_BW_250KHZ, 64);
+			SX1278_LORA_BW_250KHZ, 32);
 
-	SX1278_LoRaEntryTx(&SX1278, 64, 2000);
+	SX1278_LoRaEntryTx(&SX1278, 32, 2000);
 
 	// Setting TXData constant values
 	TXData[0] = DEVICE_ID; // Sender device id

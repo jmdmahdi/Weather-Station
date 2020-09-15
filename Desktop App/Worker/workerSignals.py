@@ -15,4 +15,5 @@ class WorkerSignals(QObject):
 
     '''
     error = pyqtSignal(tuple)
-    progress = pyqtSignal(str)
+    progress = pyqtSignal(list)
+    statusbar = pyqtSignal(bool)

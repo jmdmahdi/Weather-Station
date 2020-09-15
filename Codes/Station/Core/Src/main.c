@@ -54,12 +54,10 @@ SPI_HandleTypeDef hspi1;
 
 /* USER CODE BEGIN PV */
 uint8_t LoRa_Len;
-uint8_t CDC_Len;
-uint8_t Buffer[64];
-float_t RXData[8];
+uint8_t Buffer[32];
+float RXData[8];
 SX1278_hw_t SX1278_hw;
 SX1278_t SX1278;
-char CDC_Buf[64];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -116,10 +114,10 @@ int main(void) {
 	SX1278_hw.spi = &hspi1;
 	SX1278.hw = &SX1278_hw;
 	SX1278_begin(&SX1278, SX1278_433MHZ, SX1278_POWER_20DBM, SX1278_LORA_SF_10,
-			SX1278_LORA_BW_250KHZ, 64);
+			SX1278_LORA_BW_250KHZ, 32);
 
 	// Set LoRa on Continuous RX mode
-	SX1278_LoRaEntryRx(&SX1278, 64, 2000);
+	SX1278_LoRaEntryRx(&SX1278, 32, 2000);
 
 	/* USER CODE END 2 */
 
@@ -133,6 +131,7 @@ int main(void) {
 		while (LoRa_Len > 0) { // Read received data while data present
 			// Read data
 			SX1278_read(&SX1278, Buffer, LoRa_Len);
+			// convert to float array to check receiver device id before sending over USB
 			memcpy(RXData, Buffer, sizeof(Buffer));
 			/**
 			 * RXData is as follow:
@@ -146,14 +145,9 @@ int main(void) {
 			 * RXData[7]: Wind direction
 			 */
 			// Check if receiver device id matches with this device and ignore data if not
-			if ((uint8_t) RXData[1] == DEVICE_ID) {
-				// Send data as CSV string over USB
-				CDC_Len = sprintf(CDC_Buf, "[%d,%d,%f,%f,%f,%f,%f,%f]",
-						(uint16_t) RXData[0], DEVICE_ID, RXData[2], RXData[3],
-						RXData[4], RXData[5], RXData[6], RXData[7]);
-				// Important note:  as it is USB full speed (64 bytes per packet),
-				// 					it might broke down to multiple 64 bytes packets
-				CDC_Transmit_FS((uint8_t*) CDC_Buf, CDC_Len);
+			if ((uint16_t) RXData[1] == DEVICE_ID) {
+				// Send received data over USB
+				CDC_Transmit_FS(Buffer, sizeof(Buffer));
 			}
 
 			// Recheck if data present

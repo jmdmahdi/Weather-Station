@@ -30,6 +30,7 @@ class Worker(QRunnable):
 
         # Add the callback to our kwargs
         self.kwargs['process_callback'] = self.signals.progress
+        self.kwargs['UIUpdateCallBack'] = self.signals.statusbar
 
     @pyqtSlot()
     def run(self):
