@@ -10,6 +10,10 @@ from DB.db import sqlite3DB
 from datetime import datetime, timedelta
 from Worker.worker import Worker
 from Worker.signalWakeupHandler import SignalWakeupHandler
+import usb.backend.libusb1
+
+backend = usb.backend.libusb1.get_backend(find_library=lambda x: "libusb-1.0.dll")
+
 
 # Properly show Qt faults
 faulthandler.enable()
@@ -123,7 +127,7 @@ class MainWindow(QMainWindow):
 
     def find_device(self):
         # Search connected device for our device and return device descriptor
-        dev_g = usb.core.find(idVendor=5511, idProduct=63322, find_all=True)
+        dev_g = usb.core.find(backend=backend, idVendor=5511, idProduct=63322, find_all=True)
         dev_list = list(dev_g)
         if dev_list is None:
             return None
