@@ -1,16 +1,26 @@
-\documentclass[12pt,a4paper]{article}    
+\documentclass[12pt,a4paper]{report}    
 
 \usepackage[justification=centering]{caption}
 \usepackage[bottom]{footmisc}
-\usepackage[margin=2.32cm]{geometry}
+\usepackage[margin=2.5cm]{geometry}
 \usepackage[hidelinks]{hyperref}
 \usepackage{amssymb}
 \usepackage{amsmath}
+\usepackage{nccmath}
 \usepackage{graphicx}
 \usepackage{subcaption}
 \usepackage{titlesec}
 \usepackage{zref-perpage}
 \usepackage[space]{grffile}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{fancyhdr}
+\usepackage{fontspec}
+\usepackage{setspace}
+\usepackage{pdfpages}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{array}
 \usepackage[localise]{xepersian}
 
 \settextfont[Scale=1]{IRMitra}
@@ -19,27 +29,121 @@
 \defpersianfont\titleFont[Scale=1.5]{IRMitra Bold}
 \DefaultMathsDigits
 
+\bibliographystyle{ieeetr-fa}
+
 \titleformat*{\section}{\LARGE\bfseries}
 \titleformat*{\subsection}{\large\bfseries}
 
-\bibliographystyle{ieeetr-fa}
+\definecolor{mGreen}{rgb}{0,0.6,0}
+\definecolor{mGray}{rgb}{0.5,0.5,0.5}
+\definecolor{mPurple}{rgb}{0.58,0,0.82}
+\definecolor{backgroundColour}{rgb}{1,1,1}
 
+\lstdefinestyle{codeStyle}{
+	backgroundcolor=\color{backgroundColour},   
+	commentstyle=\color{mGreen},
+	keywordstyle=\color{magenta},
+	numberstyle=\tiny\color{mGray},
+	stringstyle=\color{mPurple},
+	basicstyle=\footnotesize,
+	breakatwhitespace=false,         
+	breaklines=true,                 
+	captionpos=b,                    
+	keepspaces=true,                 
+	numbers=left,                    
+	numbersep=5pt,                  
+	showspaces=false,                
+	showstringspaces=false,
+	showtabs=false,                  
+	tabsize=2
+}
+
+
+\renewcommand{\bibname}{مراجع}
+
+\fancyhead[R]{\fontsize{14}{15} \selectfont ایستگاه هواشناسی دیجیتال}
+\fancyhead[L]{\fontsize{14}{15} \selectfont \leftmark}
+
+\defpersianfont{\titr}{XB Titre}
+
+\makeatletter
+\newcommand\Notefont{\LARGE}
+\long\def\bibNote#1{\gdef\@bibNote{\item[]{\Notefont#1}}}
+\renewenvironment{thebibliography}[1]{%
+	\@xp\chapter\@xp*\@xp{\bibname}%
+	\normalfont\normalsize\labelsep .5em\relax
+	\renewcommand\theenumiv{\arabic{enumiv}}\let\p@enumiv\@empty
+	\list{\@biblabel{\theenumiv}}{\@bibNote\settowidth\labelwidth{\@biblabel{#1}}%
+		\leftmargin\labelwidth \advance\leftmargin\labelsep
+		\usecounter{enumiv}}%
+	\sloppy \clubpenalty\@M \widowpenalty\clubpenalty
+	\sfcode`\.=\@m
+}{%
+	\def\@noitemerr{\@latex@warning{Empty `thebibliography' environment}}%
+	\endlist
+}
+\makeatother
+
+\bibNote{\section*{مراجع}}
+
+\newcolumntype{C}[1]{>{\centering\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
 
 \begin{document}
 
 	\pagenumbering{harfi} \pagestyle{empty} \baselineskip1.2\baselineskip
+	
+	\clearpage \setcounter{page}{1}
+	\includepdf[pagecommand={\thispagestyle{empty}}]{parts/bismillah.pdf}
+	
+	\clearpage \setcounter{page}{2}
 	\input{parts/pagetitle.tex}
 	
-	\fontsize{14}{15}\selectfont
+	\clearpage \setcounter{page}{3}
+	\includepdf[pagecommand={\thispagestyle{empty}},pages=-]{parts/confirmation.pdf}
+	\clearpage 
+	\doublespacing
+	\fontsize{16}{17}\selectfont
 	
-	\pagestyle{plain} \pagenumbering{tartibi} 
+	\setcounter{page}{6}
+	
+	\input{parts/abs.tex}
+	
+	\pagestyle{plain} \setcounter{page}{1} \pagenumbering{tartibi} 
+	
 	\tableofcontents
 	
 	\newpage \setcounter{page}{0} \pagenumbering{arabic} \setcounter{page}{1} \baselineskip1.1\baselineskip 
 	\zmakeperpage{footnote}
+	\titleformat{\chapter}[display]{\vfill\filcenter\bfseries}{\titr\raggedleft\fontsize{36}{38}\selectfont\chaptername~\thechapter}{10ex}{\titr\fontsize{36}{38}\selectfont}
+	[\vfill\vfill\vfill\null\thispagestyle{empty}\clearpage\newpage\vspace*{6\baselineskip}]
+	\titlespacing{\chapter}{0pt}{0ex}{0ex}
 	
-	\input{parts/body.tex}
+	\pagestyle{fancy}
 	
-	\bibliography{lib}
+	\fontsize{15}{16}\selectfont
+	
+	\input{parts/introduction.tex}
+	
+	\input{parts/arm.tex}
+	
+	\input{parts/lora.tex}
+	
+	\input{parts/python.tex}
+	
+	\input{parts/git.tex}
+	
+	\input{parts/protocols.tex}
+	
+	\input{parts/sensors.tex}
+	
+	\input{parts/pcb.tex}
+	
+	\input{parts/details.tex}
+	
+	\input{parts/result.tex}
+	
+	\input{parts/bibliography.tex}
+	
+	\input{parts/attachments.tex}
 	
 \end{document}
