@@ -1,0 +1,25 @@
+<resources>
+    <string name="app_name">Weather Station</string>
+    <string name="tab_text_1">Home</string>
+    <string name="tab_text_2">Log</string>
+    <string name="auto_scroll">Auto Scroll</string>
+    <string name="textview">TextView</string>
+    <string name="_20_december_2020">20 December 2020</string>
+    <string name="date">Date</string>
+    <string name="_179">179 °</string>
+    <string name="_10_20_30">10:20:30</string>
+    <string name="_3_m_s">3 m/s</string>
+    <string name="_25_c">25 °C</string>
+    <string name="_500_lux">500 LUX</string>
+    <string name="_50">50 %</string>
+    <string name="_860_hpa">860 hPa</string>
+    <string name="time">Time</string>
+    <string name="wind_angle">Wind Angle</string>
+    <string name="wind_speed">Wind Speed</string>
+    <string name="temperature">Temperature</string>
+    <string name="humidity">Humidity</string>
+    <string name="light_intensity">Light Intensity</string>
+    <string name="pressure">Pressure</string>
+    <string name="compass">Compass</string>
+    <string name="disconnected">Disconnected</string>
+</resources>
